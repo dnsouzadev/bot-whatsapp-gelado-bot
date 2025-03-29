@@ -2,12 +2,14 @@ const stickerCommand = require('./sticker');
 const helpCommand = require('./help');
 const pingCommand = require('./ping');
 const olaCommand = require('./ola');
+const geladoCommand = require('./gelado');
 
 const commands = {
     'sticker': stickerCommand,
     'ajuda': helpCommand,
     'ping': pingCommand,
-    'ola': olaCommand
+    'ola': olaCommand,
+    'gelado': geladoCommand
 };
 
 const handleCommand = async (msg, comando) => {
