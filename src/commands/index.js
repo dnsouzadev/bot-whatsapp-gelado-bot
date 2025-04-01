@@ -5,6 +5,7 @@ const olaCommand = require('./ola');
 const geladoCommand = require('./gelado');
 const rankValorantCommand = require('./rankValorant');
 const everyoneCommand = require('./everyone');
+const chatCommand = require('./chat');
 
 const commands = {
     'rank': rankValorantCommand,
@@ -13,7 +14,8 @@ const commands = {
     'ping': pingCommand,
     'ola': olaCommand,
     'gelado': geladoCommand,
-    'everyone': everyoneCommand
+    'everyone': everyoneCommand,
+    'chat': chatCommand
 };
 
 const handleCommand = async (msg, comando) => {

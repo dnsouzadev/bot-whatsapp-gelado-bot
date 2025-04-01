@@ -45,3 +45,4 @@ clientWhatsApp.on('message', async msg => {
 
 // Iniciar o cliente
 clientWhatsApp.initialize();
+// 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
