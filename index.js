@@ -28,6 +28,12 @@ clientWhatsApp.on('message', async msg => {
     // Ignorar mensagens do sistema
     if (msg.isStatus) return;
 
+    const mentions = await msg.getMentions();
+
+    for (let user of mentions) {
+        await msg.reply("q q foi meu fi")
+    }
+
     console.log('Mensagem recebida:', msg.body);
 
     // Processar comandos
