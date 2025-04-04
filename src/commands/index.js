@@ -18,7 +18,7 @@ const commands = {
     'ola': olaCommand,
     'gelado': geladoCommand,
     'everyone': everyoneCommand,
-    'chat': chatCommand,
+    // 'chat': chatCommand,
     'libertadores': libertadoresCommand,
     'sulamericana': sulamericanaCommand,
     'brasileirao': brasileiraoCommand

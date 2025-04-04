@@ -29,9 +29,13 @@ clientWhatsApp.on('message', async msg => {
     if (msg.isStatus) return;
 
     const mentions = await msg.getMentions();
+    const botNumber = clientWhatsApp.info.wid._serialized;
 
-    for (let user of mentions) {
-        await msg.reply("q q foi meu fi")
+    // Verifica se o bot foi mencionado
+    const botMentioned = mentions.some(user => user.id._serialized === botNumber);
+
+    if (botMentioned) {
+        await msg.reply("q q foi meu fi");
     }
 
     console.log('Mensagem recebida:', msg.body);

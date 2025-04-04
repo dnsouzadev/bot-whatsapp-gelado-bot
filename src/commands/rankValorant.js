@@ -19,11 +19,24 @@ const rankValorantCommand = async (msg) => {
             return;
         }
 
-        // Faz a requisição para a API
-        const response = await axios.get(`https://api.kyroskoh.xyz/valorant/v1/mmr/br/${encodeURIComponent(nick)}/${encodeURIComponent(tag)}?show=combo&display=0`);
+        // Função para fazer a requisição com retry
+        const makeRequest = async (attempt = 1) => {
+            try {
+                const response = await axios.get(`https://api.kyroskoh.xyz/valorant/v1/mmr/br/${encodeURIComponent(nick)}/${encodeURIComponent(tag)}?show=combo&display=0`);
+                return response.data;
+            } catch (error) {
+                if (attempt < 5) {
+                    console.log(`Tentativa ${attempt} falhou, tentando novamente...`);
+                    // Espera 1 segundo antes de tentar novamente
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return makeRequest(attempt + 1);
+                }
+                throw error;
+            }
+        };
 
-        // Extrai os dados relevantes
-        const data = response.data;
+        // Faz a requisição com retry
+        const data = await makeRequest();
 
         // Formata a mensagem com as informações do rank
         const message = `🎮 ${nick} -> Elo: ${data}`;
@@ -31,7 +44,7 @@ const rankValorantCommand = async (msg) => {
         // Envia a mensagem formatada
         await msg.reply(message);
     } catch (error) {
-        console.error('Erro ao buscar rank:', error);
+        console.error('Erro ao buscar rank após 5 tentativas:', error);
         await msg.reply('Desculpe, ocorreu um erro ao buscar as informações do rank. Verifique se o nome e tag estão corretos.');
     }
 };
