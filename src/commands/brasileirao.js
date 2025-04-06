@@ -10,7 +10,7 @@ const brasileiraoCommand = async (msg) => {
 
         // Filtra apenas os jogos do Brasileirão
         const brasileiraoGames = response.data.schedules.filter(game =>
-            game.sport_event.sport_event_context.competition.name === "Campeonato Brasileiro Série A"
+            game.sport_event.sport_event_context.competition.name === "Brasileirão Série A"
         );
 
         if (brasileiraoGames.length === 0) {
