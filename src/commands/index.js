@@ -9,6 +9,7 @@ const chatCommand = require('./chat');
 const libertadoresCommand = require('./libertadores');
 const sulamericanaCommand = require('./sulamericana');
 const brasileiraoCommand = require('./brasileirao');
+const tabelaBrasileiraoCommand = require('./tabelaBrasileirao');
 
 const commands = {
     'rank': rankValorantCommand,
@@ -21,7 +22,8 @@ const commands = {
     // 'chat': chatCommand,
     'libertadores': libertadoresCommand,
     'sulamericana': sulamericanaCommand,
-    'brasileirao': brasileiraoCommand
+    'brasileirao': brasileiraoCommand,
+    'tabelaBrasileirao': tabelaBrasileiraoCommand
 };
 
 const handleCommand = async (msg, comando) => {
