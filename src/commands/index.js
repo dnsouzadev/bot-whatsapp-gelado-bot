@@ -1,8 +1,14 @@
-const stickerCommand = require('./sticker');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const { Configuration, OpenAIApi } = require('openai');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+// Importando comandos
 const helpCommand = require('./help');
 const pingCommand = require('./ping');
-const olaCommand = require('./ola');
-const geladoCommand = require('./gelado');
+const stickerCommand = require('./sticker');
 const rankValorantCommand = require('./rankValorant');
 const everyoneCommand = require('./everyone');
 const chatCommand = require('./chat');
@@ -10,20 +16,28 @@ const libertadoresCommand = require('./libertadores');
 const sulamericanaCommand = require('./sulamericana');
 const brasileiraoCommand = require('./brasileirao');
 const tabelaBrasileiraoCommand = require('./tabelaBrasileirao');
+const tabelaLibertadoresCommand = require('./tabelaLibertadores');
+const dadoCommand = require('./dado');
+const caraoucoroaCommand = require('./caraoucoroa');
+const pedrapapeltesouraCommand = require('./pedrapapeltesoura');
+const gatoCommand = require('./gato');
 
 const commands = {
-    'rank': rankValorantCommand,
-    'sticker': stickerCommand,
     'ajuda': helpCommand,
     'ping': pingCommand,
-    'ola': olaCommand,
-    'gelado': geladoCommand,
+    'sticker': stickerCommand,
+    'rank': rankValorantCommand,
     'everyone': everyoneCommand,
-    // 'chat': chatCommand,
+    'chat': chatCommand,
     'libertadores': libertadoresCommand,
     'sulamericana': sulamericanaCommand,
     'brasileirao': brasileiraoCommand,
-    'tabelaBrasileirao': tabelaBrasileiraoCommand
+    'tabelabrasileirao': tabelaBrasileiraoCommand,
+    'tabelalibertadores': tabelaLibertadoresCommand,
+    'dado': dadoCommand,
+    'caraoucoroa': caraoucoroaCommand,
+    'ppt': pedrapapeltesouraCommand,
+    'gato': gatoCommand
 };
 
 const handleCommand = async (msg, comando) => {
