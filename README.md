@@ -1,80 +1,143 @@
-# Chatbot WhatsApp
+# 🤖 Bot de WhatsApp
 
-Este é um chatbot simples para WhatsApp desenvolvido em JavaScript usando as bibliotecas whatsapp-web.js e qrcode-terminal.
+Um bot de WhatsApp multifuncional com diversos comandos para entretenimento, futebol, jogos e mais!
 
-## Estrutura do Projeto
+## 🚀 Funcionalidades
 
+### ⚽ Futebol
+- `!libertadores` - Mostra os jogos ao vivo da Libertadores
+- `!sulamericana` - Mostra os jogos ao vivo da Sul-Americana
+- `!brasileirao` - Mostra os jogos ao vivo do Brasileirão
+- `!tabelabrasileirao` - Mostra a tabela do Brasileirão
+- `!tabelalibertadores` - Mostra a tabela da Libertadores
+
+### 🎮 Valorant
+- `!rank [nome#tag]` - Mostra o rank de um jogador do Valorant
+
+### 🎲 Jogos
+- `!dado` - Rola um dado de 1 a 6
+- `!caraoucoroa` - Joga cara ou coroa
+- `!ppt [pedra/papel/tesoura]` - Joga pedra, papel ou tesoura contra o bot
+
+### 😄 Diversão
+- `!gato` - Mostra uma foto aleatória de um gato
+
+### 📱 Outros
+- `!sticker` - Converte uma imagem em sticker
+- `!everyone` - Marca todos os membros do grupo
+- `!chat` - Inicia uma conversa com o bot
+- `!ping` - Verifica se o bot está online
+- `!ajuda` - Mostra esta mensagem de ajuda
+
+## 🛠️ Tecnologias Utilizadas
+
+- Node.js
+- WhatsApp Web JS
+- OpenAI API
+- Axios
+- Sharp
+- PM2 (para produção)
+
+## ⚙️ Configuração
+
+1. Clone o repositório:
+```bash
+git clone [seu-repositorio]
+cd chatbot-whatsapp
 ```
-.
-├── src/
-│   ├── config/
-│   │   └── client.js      # Configuração do cliente WhatsApp
-│   └── commands/
-│       ├── index.js       # Gerenciador de comandos
-│       ├── sticker.js     # Comando de sticker
-│       ├── help.js        # Comando de ajuda
-│       ├── ping.js        # Comando de ping
-│       └── ola.js         # Comando de saudação
-├── index.js               # Arquivo principal
-├── package.json          # Dependências do projeto
-└── README.md            # Este arquivo
-```
 
-## Requisitos
-
-- Node.js 14 ou superior
-- NPM (Node Package Manager)
-- Conta WhatsApp
-
-## Instalação
-
-1. Clone este repositório
 2. Instale as dependências:
 ```bash
 npm install
 ```
 
-## Como usar
-
-1. Execute o bot:
-```bash
-npm start
+3. Configure as variáveis de ambiente:
+Crie um arquivo `.env` na raiz do projeto com:
+```
+OPENAI_API_KEY=sua_chave_api
 ```
 
-2. Escaneie o código QR que aparecerá no terminal com seu WhatsApp
+## 🚀 Executando o Bot
 
-## Funcionalidades
+### Desenvolvimento
+```bash
+npm run dev
+```
 
-- Leitura de mensagens recebidas
-- Resposta automática a comandos
-- Processamento de comandos básicos
-- Conversão de imagens em stickers
+### Produção
+```bash
+npm run prod
+```
 
-## Comandos disponíveis
+### Comandos PM2
+```bash
+# Ver status
+npm run status
 
-- `!ola` - Recebe uma saudação do bot
-- `!ajuda` - Mostra os comandos disponíveis
-- `!ping` - Verifica se o bot está online
-- `!sticker` - Converte uma imagem em sticker (envie a imagem junto com o comando)
+# Ver logs
+npm run logs
 
-## Como usar o comando de sticker
+# Reiniciar
+npm run restart
 
-1. Envie uma imagem para o bot
-2. Adicione o comando `!sticker` na legenda da imagem
-3. O bot irá processar a imagem e enviar de volta como sticker
+# Parar
+npm run stop
+```
 
-## Observações
+## 📦 Deploy na AWS
 
-- O bot precisa ser inicializado manualmente após cada reinicialização do computador
-- A primeira vez que você executar o bot, será necessário escanear o QR Code
-- As sessões subsequentes serão restauradas automaticamente
-- Para criar stickers, envie apenas imagens (JPG, PNG, etc.)
-- O bot redimensionará automaticamente a imagem para o tamanho adequado para stickers
+1. Crie uma instância EC2 (recomendado: t2.micro)
+2. Use Ubuntu Server 22.04 LTS
+3. Configure o security group para permitir SSH (porta 22)
 
-## Desenvolvimento
+### Comandos para configurar a AWS:
+```bash
+# Atualizar sistema
+sudo apt update && sudo apt upgrade -y
 
-Para adicionar novos comandos:
+# Instalar Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
 
-1. Crie um novo arquivo na pasta `src/commands/`
-2. Exporte a função do comando
-3. Adicione o comando no objeto `commands` em `src/commands/index.js`
+# Instalar PM2
+sudo npm install -g pm2
+
+# Instalar Git
+sudo apt install git
+
+# Clonar e configurar o projeto
+git clone [seu-repositorio]
+cd chatbot-whatsapp
+npm install
+npm run prod
+
+# Configurar para iniciar automaticamente
+pm2 save
+pm2 startup
+```
+
+## 📝 Logs
+
+Os logs são armazenados na pasta `logs/`:
+- `err.log` - Logs de erro
+- `out.log` - Logs de saída
+- `combined.log` - Logs combinados
+
+## 🤝 Contribuição
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## ✨ Agradecimentos
+
+- [WhatsApp Web JS](https://github.com/pedroslopez/whatsapp-web.js)
+- [OpenAI](https://openai.com)
+- [Sportradar API](https://developer.sportradar.com)
+- [The Cat API](https://thecatapi.com)
