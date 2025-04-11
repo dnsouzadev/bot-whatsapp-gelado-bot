@@ -11,6 +11,7 @@ const helpCommand = async (msg) => {
 
 *🎮 Valorant*
 !rank [nome#tag] - Mostra o rank de um jogador do Valorant
+!vctamericas - Mostra os próximos jogos do VCT Americas
 
 *🎲 Jogos*
 !dado - Rola um dado de 1 a 6

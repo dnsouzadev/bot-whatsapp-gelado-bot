@@ -8,36 +8,39 @@ const path = require('path');
 // Importando comandos
 const helpCommand = require('./help');
 const pingCommand = require('./ping');
+const chatCommand = require('./chat');
+const everyoneCommand = require('./everyone');
 const stickerCommand = require('./sticker');
 const rankValorantCommand = require('./rankValorant');
-const everyoneCommand = require('./everyone');
-const chatCommand = require('./chat');
+const dadoCommand = require('./dado');
+const caraoucoroaCommand = require('./caraoucoroa');
+const pptCommand = require('./pedrapapeltesoura');
+const gatoCommand = require('./gato');
 const libertadoresCommand = require('./libertadores');
 const sulamericanaCommand = require('./sulamericana');
 const brasileiraoCommand = require('./brasileirao');
 const tabelaBrasileiraoCommand = require('./tabelaBrasileirao');
 const tabelaLibertadoresCommand = require('./tabelaLibertadores');
-const dadoCommand = require('./dado');
-const caraoucoroaCommand = require('./caraoucoroa');
-const pedrapapeltesouraCommand = require('./pedrapapeltesoura');
-const gatoCommand = require('./gato');
+const vctamericasCommand = require('./vctamericas');
 
 const commands = {
     'ajuda': helpCommand,
+    'help': helpCommand,
     'ping': pingCommand,
+    'chat': chatCommand,
+    'everyone': everyoneCommand,
     'sticker': stickerCommand,
     'rank': rankValorantCommand,
-    'everyone': everyoneCommand,
-    'chat': chatCommand,
+    'dado': dadoCommand,
+    'caraoucoroa': caraoucoroaCommand,
+    'ppt': pptCommand,
+    'gato': gatoCommand,
     'libertadores': libertadoresCommand,
     'sulamericana': sulamericanaCommand,
     'brasileirao': brasileiraoCommand,
     'tabelabrasileirao': tabelaBrasileiraoCommand,
     'tabelalibertadores': tabelaLibertadoresCommand,
-    'dado': dadoCommand,
-    'caraoucoroa': caraoucoroaCommand,
-    'ppt': pedrapapeltesouraCommand,
-    'gato': gatoCommand
+    'vctamericas': vctamericasCommand
 };
 
 const handleCommand = async (msg, comando) => {
