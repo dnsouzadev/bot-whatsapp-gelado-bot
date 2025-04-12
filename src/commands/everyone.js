@@ -23,4 +23,4 @@ const everyoneCommand = async (msg) => {
     }
 }
 
-module.exports = everyoneCommand;
+export default everyoneCommand;

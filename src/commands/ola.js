@@ -1,5 +1,5 @@
 const olaCommand = async (msg) => {
-    await msg.reply('Olá! Como posso ajudar?');
+    await msg.reply('Quem é o Lindao? fala tu, Lindao!');
 };
 
-module.exports = olaCommand;
+export default olaCommand;

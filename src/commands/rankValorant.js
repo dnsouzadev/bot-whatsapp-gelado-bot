@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 const rankValorantCommand = async (msg) => {
     try {
@@ -25,7 +25,7 @@ const rankValorantCommand = async (msg) => {
                 const response = await axios.get(`https://api.kyroskoh.xyz/valorant/v1/mmr/br/${encodeURIComponent(nick)}/${encodeURIComponent(tag)}?show=combo&display=0`);
                 return response.data;
             } catch (error) {
-                if (attempt < 5) {
+                if (attempt < 8) {
                     console.log(`Tentativa ${attempt} falhou, tentando novamente...`);
                     // Espera 1 segundo antes de tentar novamente
                     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -49,4 +49,4 @@ const rankValorantCommand = async (msg) => {
     }
 };
 
-module.exports = rankValorantCommand;
+export default rankValorantCommand;

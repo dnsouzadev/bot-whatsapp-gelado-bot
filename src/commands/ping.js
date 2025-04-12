@@ -1,5 +1,12 @@
+import axios from 'axios';
+
 const pingCommand = async (msg) => {
-    await msg.reply('Pong! Bot está online!');
+    const startTime = Date.now();
+    const ip = await axios.get('https://api.ipify.org?format=json');
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+
+    await msg.reply(`Pong! Bot está online! Tempo de resposta: ${responseTime}ms e meu IP é ${ip.data.ip}`);
 };
 
-module.exports = pingCommand;
+export default pingCommand;

@@ -1,8 +1,15 @@
-const OpenAI = require('openai');
+import { GoogleGenAI } from "@google/genai";
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const openai = new OpenAI({
-    apiKey: "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"
-});
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 
 const chatCommand = async (msg) => {
     try {
@@ -19,27 +26,19 @@ const chatCommand = async (msg) => {
         await msg.reply('🤔 Pensando...');
 
         // Faz a requisição para a API do OpenAI
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    "role": "system",
-                    "content": "Você é um assistente amigável e prestativo. Responda de forma clara e concisa."
-                },
-                {
-                    "role": "user",
-                    "content": userMessage
-                }
-            ],
-            max_tokens: 500
+        const completion = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: userMessage
         });
 
+
+
         // Envia a resposta
-        await msg.reply(completion.choices[0].message.content);
+        await msg.reply(completion.text);
     } catch (error) {
         console.error('Erro ao processar mensagem:', error);
         await msg.reply('Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
     }
 };
 
-module.exports = chatCommand;
+export default chatCommand;

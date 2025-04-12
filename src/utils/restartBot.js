@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+import { exec } from 'child_process';
 
 const restartBot = () => {
     console.log('Reiniciando o bot...');
@@ -11,4 +11,4 @@ const restartBot = () => {
     });
 };
 
-module.exports = restartBot;
+export default restartBot;

@@ -1,7 +1,7 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const commands = require('./commands');
-const restartBot = require('./utils/restartBot');
+import qrcode from 'qrcode-terminal';
+import { Client, LocalAuth } from 'whatsapp-web.js';
+import commands from './commands/index.js';
+import restartBot from './utils/restartBot';
 
 const client = new Client({
     authStrategy: new LocalAuth(),

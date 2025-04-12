@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { MessageMedia } = require('whatsapp-web.js');
+import axios from 'axios';
+import { MessageMedia } from 'whatsapp-web.js';
 
 const gatoCommand = async (msg) => {
     try {
@@ -21,4 +21,4 @@ const gatoCommand = async (msg) => {
     }
 };
 
-module.exports = gatoCommand;
+export default gatoCommand;

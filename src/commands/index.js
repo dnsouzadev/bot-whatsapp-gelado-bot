@@ -1,27 +1,19 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const { Configuration, OpenAIApi } = require('openai');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-
-// Importando comandos
-const helpCommand = require('./help');
-const pingCommand = require('./ping');
-const chatCommand = require('./chat');
-const everyoneCommand = require('./everyone');
-const stickerCommand = require('./sticker');
-const rankValorantCommand = require('./rankValorant');
-const dadoCommand = require('./dado');
-const caraoucoroaCommand = require('./caraoucoroa');
-const pptCommand = require('./pedrapapeltesoura');
-const gatoCommand = require('./gato');
-const libertadoresCommand = require('./libertadores');
-const sulamericanaCommand = require('./sulamericana');
-const brasileiraoCommand = require('./brasileirao');
-const tabelaBrasileiraoCommand = require('./tabelaBrasileirao');
-const tabelaLibertadoresCommand = require('./tabelaLibertadores');
-const vctamericasCommand = require('./vctamericas');
+import brasileiraoCommand from './brasileirao.js';
+import caraoucoroaCommand from './caraoucoroa.js';
+import chatCommand from './chat.js';
+import dadoCommand from './dado.js';
+import everyoneCommand from './everyone.js';
+import gatoCommand from './gato.js';
+import helpCommand from './help.js';
+import libertadoresCommand from './libertadores.js';
+import pptCommand from './pedrapapeltesoura.js';
+import pingCommand from './ping.js';
+import rankCommand from './rank.js';
+import stickerCommand from './sticker.js';
+import sulamericanaCommand from './sulamericana.js';
+import tabelaBrasileiraoCommand from './tabelaBrasileirao.js';
+import tabelaLibertadoresCommand from './tabelaLibertadores.js';
+import vctamericasCommand from './vctamericas.js';
 
 const commands = {
     'ajuda': helpCommand,
@@ -30,7 +22,7 @@ const commands = {
     'chat': chatCommand,
     'everyone': everyoneCommand,
     'sticker': stickerCommand,
-    'rank': rankValorantCommand,
+    'rank': rankCommand,
     'dado': dadoCommand,
     'caraoucoroa': caraoucoroaCommand,
     'ppt': pptCommand,
@@ -43,16 +35,4 @@ const commands = {
     'vctamericas': vctamericasCommand
 };
 
-const handleCommand = async (msg, comando) => {
-    // Pega apenas o primeiro comando, ignorando os argumentos
-    const commandName = comando.split(' ')[0];
-    const commandHandler = commands[commandName];
-
-    if (commandHandler) {
-        await commandHandler(msg);
-    } else {
-        await msg.reply('Comando não reconhecido. Use !ajuda para ver os comandos disponíveis.');
-    }
-};
-
-module.exports = { handleCommand };
+export default commands;

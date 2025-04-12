@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 // Função auxiliar para bandeira com base no country_code
 const getFlagEmoji = (countryCode) => {
@@ -72,4 +72,4 @@ ${status?.match_situation ? `${status.match_situation.status === 'attack' ? '⚡
     }
 };
 
-module.exports = libertadoresCommand;
+export default libertadoresCommand;

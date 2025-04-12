@@ -35,4 +35,4 @@ const pedrapapeltesouraCommand = async (msg) => {
     );
 };
 
-module.exports = pedrapapeltesouraCommand;
+export default pedrapapeltesouraCommand;

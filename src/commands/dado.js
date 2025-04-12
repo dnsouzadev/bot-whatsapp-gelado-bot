@@ -5,4 +5,4 @@ const dadoCommand = async (msg) => {
     await msg.reply(`🎲 *Resultado do dado:* ${emojis[resultado - 1]} ${resultado}`);
 };
 
-module.exports = dadoCommand;
+export default dadoCommand;

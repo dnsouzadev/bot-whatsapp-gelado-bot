@@ -24,7 +24,7 @@ const helpCommand = async (msg) => {
 *📱 Outros*
 !sticker - Converte uma imagem em sticker
 !everyone - Marca todos os membros do grupo
-!chat - Inicia uma conversa com o bot
+!chat - Inicia uma conversa com o Gemini AI
 !ping - Verifica se o bot está online
 !ajuda - Mostra esta mensagem de ajuda
 `;
@@ -32,4 +32,4 @@ const helpCommand = async (msg) => {
     await msg.reply(helpMessage);
 };
 
-module.exports = helpCommand;
+export default helpCommand;

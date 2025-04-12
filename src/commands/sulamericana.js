@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 const getFlagEmoji = (countryCode) => {
     if (!countryCode) return '';
@@ -78,4 +78,4 @@ ${status?.match_situation ? `${
     }
 };
 
-module.exports = sulamericanaCommand;
+export default sulamericanaCommand;

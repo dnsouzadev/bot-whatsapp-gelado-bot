@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 const tabelaLibertadoresCommand = async (msg) => {
     try {
@@ -89,4 +89,4 @@ const tabelaLibertadoresCommand = async (msg) => {
     }
 };
 
-module.exports = tabelaLibertadoresCommand;
+export default tabelaLibertadoresCommand;

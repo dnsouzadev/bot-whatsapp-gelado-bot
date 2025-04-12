@@ -1,10 +1,10 @@
-const sharp = require('sharp');
-const { MessageMedia } = require('whatsapp-web.js');
-const ffmpeg = require('ffmpeg-static');
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import { spawn } from 'child_process';
+import ffmpeg from 'ffmpeg-static';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import sharp from 'sharp';
+import { MessageMedia } from 'whatsapp-web.js';
 
 const stickerCommand = async (msg) => {
     try {
@@ -121,4 +121,4 @@ const stickerCommand = async (msg) => {
     }
 };
 
-module.exports = stickerCommand;
+export default stickerCommand;

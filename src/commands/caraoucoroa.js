@@ -5,4 +5,4 @@ const caraoucoroaCommand = async (msg) => {
     await msg.reply(`${emoji} *Resultado:* ${resultado.toUpperCase()}`);
 };
 
-module.exports = caraoucoroaCommand;
+export default caraoucoroaCommand;
