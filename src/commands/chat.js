@@ -22,9 +22,6 @@ const chatCommand = async (msg) => {
             return;
         }
 
-        // Envia mensagem de "digitando..."
-        await msg.reply('🤔 Pensando...');
-
         // Faz a requisição para a API do OpenAI
         const completion = await ai.models.generateContent({
             model: "gemini-2.0-flash",

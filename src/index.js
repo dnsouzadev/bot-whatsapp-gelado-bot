@@ -1,46 +1,51 @@
 import qrcode from 'qrcode-terminal';
-import { Client, LocalAuth } from 'whatsapp-web.js';
-import commands from './commands/index.js';
-import restartBot from './utils/restartBot';
+import pkg from 'whatsapp-web.js';
+import handleCommand from './commands/index.js';
+const { Client, LocalAuth } = pkg;
 
-const client = new Client({
+// Criar uma nova instância do cliente WhatsApp
+const clientWhatsApp = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        headless: true,
-        executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome'
+        args: ['--no-sandbox']
     }
 });
 
-client.on('qr', (qr) => {
+// Gerar QR Code no terminal
+clientWhatsApp.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
+    console.log('QR Code gerado! Escaneie-o com seu WhatsApp.');
 });
 
-client.on('ready', () => {
-    console.log('Cliente está pronto!');
+// Quando o cliente estiver pronto
+clientWhatsApp.on('ready', () => {
+    console.log('Cliente WhatsApp está pronto!');
 });
 
-client.on('message', async (msg) => {
-    try {
-        const command = msg.body.split(' ')[0].toLowerCase();
-        if (commands[command]) {
-            await commands[command](msg);
-        }
-    } catch (error) {
-        console.error('Erro ao processar mensagem:', error);
-        if (error.message.includes('Execution context was destroyed')) {
-            console.log('Detectado erro de contexto destruído, reiniciando bot...');
-            restartBot();
-        }
+// Quando receber uma mensagem
+clientWhatsApp.on('message', async msg => {
+    // Ignorar mensagens do sistema
+    if (msg.isStatus) return;
+
+    const mentions = await msg.getMentions();
+    const botNumber = clientWhatsApp.info.wid._serialized;
+
+    // Verifica se o bot foi mencionado
+    const botMentioned = mentions.some(user => user.id._serialized === botNumber);
+
+    if (botMentioned) {
+        await msg.reply("Desculpe, não comerei seu fundo");
+    }
+
+    console.log('Mensagem recebida do numero:', msg.from);
+    console.log('Mensagem recebida:', msg.body);
+
+    // Processar comandos
+    if (msg.body.startsWith('!')) {
+        const comando = msg.body.slice(1).toLowerCase();
+        await handleCommand(msg, comando);
     }
 });
 
-client.on('disconnected', (reason) => {
-    console.log('Cliente desconectado:', reason);
-    restartBot();
-});
-
-client.initialize().catch(err => {
-    console.error('Erro ao inicializar cliente:', err);
-    restartBot();
-});
+// Iniciar o cliente
+clientWhatsApp.initialize();

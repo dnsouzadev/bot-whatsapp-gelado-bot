@@ -8,7 +8,7 @@ import helpCommand from './help.js';
 import libertadoresCommand from './libertadores.js';
 import pptCommand from './pedrapapeltesoura.js';
 import pingCommand from './ping.js';
-import rankCommand from './rank.js';
+import rankValorantCommand from './rankValorant.js';
 import stickerCommand from './sticker.js';
 import sulamericanaCommand from './sulamericana.js';
 import tabelaBrasileiraoCommand from './tabelaBrasileirao.js';
@@ -21,8 +21,8 @@ const commands = {
     'ping': pingCommand,
     'chat': chatCommand,
     'everyone': everyoneCommand,
+    'rank': rankValorantCommand,
     'sticker': stickerCommand,
-    'rank': rankCommand,
     'dado': dadoCommand,
     'caraoucoroa': caraoucoroaCommand,
     'ppt': pptCommand,
@@ -35,4 +35,21 @@ const commands = {
     'vctamericas': vctamericasCommand
 };
 
-export default commands;
+const handleCommand = async (msg, command) => {
+    const commandName = command.split(' ')[0];
+    const commandHandler = commands[commandName];
+
+    if (!commandHandler) {
+        await msg.reply('Comando inválido. Digite !ajuda para ver os comandos disponíveis.');
+        return;
+    }
+
+    try {
+        await commandHandler(msg);
+    } catch (error) {
+        console.error('Erro ao processar comando:', error);
+        await msg.reply('Ocorreu um erro ao processar o comando. Tente novamente mais tarde.');
+    }
+};
+
+export default handleCommand;

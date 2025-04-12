@@ -44,19 +44,6 @@ const tabelaBrasileiraoCommand = async (msg) => {
             message += `${line}\n`;
         });
 
-        // Adiciona legenda
-        message += '\n*Legenda:*\n';
-        message += '🥇 Primeiro lugar\n';
-        message += '🥈 Segundo lugar\n';
-        message += '🥉 Terceiro lugar\n';
-        message += '🔷 Zona da Libertadores\n';
-        message += '🔶 Zona da Sul-Americana\n';
-        message += '🔻 Zona de rebaixamento\n';
-        message += '📈 Saldo positivo\n';
-        message += '📉 Saldo negativo\n';
-        message += '➖ Saldo neutro\n';
-        message += '🇧🇷 Time brasileiro\n';
-
         // Envia a mensagem
         await msg.reply(message);
     } catch (error) {

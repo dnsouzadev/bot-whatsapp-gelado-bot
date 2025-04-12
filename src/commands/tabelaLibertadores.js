@@ -63,24 +63,6 @@ const tabelaLibertadoresCommand = async (msg) => {
             message += '\n';
         });
 
-        // Adiciona legenda
-        message += '*Legenda:*\n';
-        message += '🔷 Classificados para Play-off\n';
-        message += '🔶 Classificados para Sul-Americana\n';
-        message += '📈 Saldo positivo\n';
-        message += '📉 Saldo negativo\n';
-        message += '➖ Saldo neutro\n';
-        message += '🇧🇷 Time brasileiro\n';
-        message += '🇦🇷 Time argentino\n';
-        message += '🇨🇱 Time chileno\n';
-        message += '🇪🇨 Time equatoriano\n';
-        message += '🇵🇪 Time peruano\n';
-        message += '🇻🇪 Time venezuelano\n';
-        message += '🇵🇾 Time paraguaio\n';
-        message += '🇺🇾 Time uruguaio\n';
-        message += '🇧🇴 Time boliviano\n';
-        message += '🇨🇴 Time colombiano\n';
-
         // Envia a mensagem
         await msg.reply(message);
     } catch (error) {
