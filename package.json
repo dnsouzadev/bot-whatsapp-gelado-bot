@@ -2,21 +2,21 @@
   "name": "chatbot-whatsapp",
   "version": "1.0.0",
   "description": "Bot de WhatsApp com comandos diversos",
-  "main": "index.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
     "prod": "pm2 start ecosystem.config.js",
     "stop": "pm2 stop whatsapp-bot",
     "restart": "pm2 restart whatsapp-bot",
     "logs": "pm2 logs whatsapp-bot",
-    "status": "pm2 status"
+    "status": "pm2 status whatsapp-bot"
   },
   "dependencies": {
     "@google/genai": "^0.8.0",
     "axios": "^1.6.7",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
     "openai": "^4.28.0",
     "qrcode-terminal": "^0.12.0",
