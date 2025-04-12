@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     apps: [{
         name: "whatsapp-bot",
         script: "src/index.js",
