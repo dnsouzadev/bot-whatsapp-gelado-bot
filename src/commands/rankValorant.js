@@ -17,9 +17,8 @@ const rankValorantCommand = async (message, instance) => {
         //https://vaccie.pythonanywhere.com/mmr/vaccie/666/eu
         const response = await axios.get(`https://vaccie.pythonanywhere.com/mmr/${name}/${tag}/br`);
 
-        const data = response.data.data;
-        const rankMsg = `🎮 *Valorant Rank: ${player}*\n\nRank: ${data.currenttierpatched}\nMMR: ${data.ranking_in_tier}\nÚltima variação: ${data.mmr_change_to_last_game}`;
-
+        const data = response;
+        const rankMsg = `🎮 *Valorant Rank: ${data}`
         await sendReply(instance, message.key.remoteJid, rankMsg, message.key.id);
     } catch (error) {
         console.error('Erro Valorant:', error);
