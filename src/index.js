@@ -57,8 +57,6 @@ app.post('/webhook', async (req, res) => {
             const comando = messageContent.slice(1).toLowerCase();
             console.log('Comando detectado:', comando);
 
-            console.log('MENSAGEM COMPLETA:', JSON.stringify(message, null, 2));
-
             await handleCommand(message, comando, instance);
         }
 
