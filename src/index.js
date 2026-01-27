@@ -31,7 +31,7 @@ app.post('/webhook', async (req, res) => {
         const message = data;
 
         // Ignora mensagens do próprio bot
-        if (message.key.fromMe) return;
+        // if (message.key.fromMe) return;
 
         // Ignora mensagens de status
         if (message.key.remoteJid === 'status@broadcast') return;
