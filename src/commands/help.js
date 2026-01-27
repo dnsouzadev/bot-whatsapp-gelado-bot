@@ -1,35 +1,44 @@
-const helpCommand = async (msg) => {
+import { sendReply } from '../services/evolutionApi.js';
+
+const helpCommand = async (message, instance) => {
     const helpMessage = `
-*🤖 Lista de Comandos Disponíveis:*
+🤖 *Bot de WhatsApp - Comandos Disponíveis*
 
-*⚽ Futebol*
-!libertadores - Mostra os jogos ao vivo da Libertadores
-!sulamericana - Mostra os jogos ao vivo da Sul-Americana
-!brasileirao - Mostra os jogos ao vivo do Brasileirão
-!tabelabrasileirao - Mostra a tabela do Brasileirão
-!tabelalibertadores - Mostra a tabela da Libertadores
+⚽ *Futebol*
+• !libertadores - Jogos ao vivo da Libertadores
+• !sulamericana - Jogos ao vivo da Sul-Americana
+• !brasileirao - Jogos ao vivo do Brasileirão
+• !tabelabrasileirao - Tabela do Brasileirão
+• !tabelalibertadores - Tabela da Libertadores
+• !vctamericas - Informações do VCT Americas
 
-*🎮 Valorant*
-!rank [nome#tag] - Mostra o rank de um jogador do Valorant
-!vctamericas - Mostra os próximos jogos do VCT Americas
+🎮 *Valorant*
+• !rank [nome#tag] - Rank de um jogador
 
-*🎲 Jogos*
-!dado - Rola um dado de 1 a 6
-!caraoucoroa - Joga cara ou coroa
-!ppt [pedra/papel/tesoura] - Joga pedra, papel ou tesoura contra o bot
+🎲 *Jogos*
+• !dado - Rola um dado (1-6)
+• !caraoucoroa - Cara ou coroa
+• !ppt [pedra/papel/tesoura] - Pedra, papel ou tesoura
 
-*😄 Diversão*
-!gato - Mostra uma foto aleatória de um gato
+😄 *Diversão*
+• !gato - Foto aleatória de gato
+• !chat [mensagem] - Conversa com IA
 
-*📱 Outros*
-!sticker - Converte uma imagem em sticker
-!everyone - Marca todos os membros do grupo
-!chat - Inicia uma conversa com o Gemini AI
-!ping - Verifica se o bot está online
-!ajuda - Mostra esta mensagem de ajuda
-`;
+📱 *Outros*
+• !sticker - Converte imagem em sticker
+• !everyone - Marca todos do grupo
+• !ping - Verifica se o bot está online
+• !ajuda - Mostra esta mensagem
 
-    await msg.reply(helpMessage);
+_Bot funciona apenas em grupos!_
+    `.trim();
+
+    await sendReply(
+        instance,
+        message.key.remoteJid,
+        helpMessage,
+        message.key.id
+    );
 };
 
 export default helpCommand;

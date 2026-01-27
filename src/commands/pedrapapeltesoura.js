@@ -1,38 +1,44 @@
-const pedrapapeltesouraCommand = async (msg) => {
-    const opcoes = ['pedra', 'papel', 'tesoura'];
-    const emojis = {
-        'pedra': '🪨',
-        'papel': '📄',
-        'tesoura': '✂️'
-    };
+import { sendReply } from '../services/evolutionApi.js';
 
-    const escolhaBot = opcoes[Math.floor(Math.random() * 3)];
-    const escolhaUsuario = msg.body.split(' ')[1]?.toLowerCase();
+const pptCommand = async (message, instance) => {
+    const messageContent = message.message?.conversation || 
+                          message.message?.extendedTextMessage?.text || '';
+
+    const args = messageContent.split(' ');
+    const escolhaUsuario = args[1]?.toLowerCase();
+    const opcoes = ['pedra', 'papel', 'tesoura'];
 
     if (!escolhaUsuario || !opcoes.includes(escolhaUsuario)) {
-        await msg.reply('❌ Escolha inválida! Use: !ppt pedra, !ppt papel ou !ppt tesoura');
+        await sendReply(
+            instance,
+            message.key.remoteJid,
+            'Escolha uma opção válida: !ppt pedra, !ppt papel ou !ppt tesoura',
+            message.key.id
+        );
         return;
     }
 
-    let resultado;
+    const escolhaBot = opcoes[Math.floor(Math.random() * 3)];
+    let resultado = '';
+
     if (escolhaUsuario === escolhaBot) {
-        resultado = 'Empate!';
+        resultado = `Empate! Eu também escolhi ${escolhaBot}.`;
     } else if (
         (escolhaUsuario === 'pedra' && escolhaBot === 'tesoura') ||
         (escolhaUsuario === 'papel' && escolhaBot === 'pedra') ||
         (escolhaUsuario === 'tesoura' && escolhaBot === 'papel')
     ) {
-        resultado = 'Você ganhou! 🎉';
+        resultado = `Você ganhou! Eu escolhi ${escolhaBot}.`;
     } else {
-        resultado = 'Você perdeu! 😢';
+        resultado = `Você perdeu! Eu escolhi ${escolhaBot}.`;
     }
 
-    await msg.reply(
-        `*Pedra, Papel ou Tesoura!*\n\n` +
-        `Você: ${emojis[escolhaUsuario]} ${escolhaUsuario}\n` +
-        `Bot: ${emojis[escolhaBot]} ${escolhaBot}\n\n` +
-        `*Resultado:* ${resultado}`
+    await sendReply(
+        instance,
+        message.key.remoteJid,
+        resultado,
+        message.key.id
     );
 };
 
-export default pedrapapeltesouraCommand;
+export default pptCommand;

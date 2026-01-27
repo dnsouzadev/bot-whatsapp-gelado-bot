@@ -35,20 +35,32 @@ const commands = {
     'vctamericas': vctamericasCommand
 };
 
-const handleCommand = async (msg, command) => {
+const handleCommand = async (message, command, instance) => {
     const commandName = command.split(' ')[0];
     const commandHandler = commands[commandName];
 
     if (!commandHandler) {
-        await msg.reply('Comando inválido. Digite !ajuda para ver os comandos disponíveis.');
+        const { sendReply } = await import('../services/evolutionApi.js');
+        await sendReply(
+            instance,
+            message.key.remoteJid,
+            'Comando inválido. Digite !ajuda para ver os comandos disponíveis.',
+            message.key.id
+        );
         return;
     }
 
     try {
-        await commandHandler(msg);
+        await commandHandler(message, instance);
     } catch (error) {
         console.error('Erro ao processar comando:', error);
-        await msg.reply('Ocorreu um erro ao processar o comando. Tente novamente mais tarde.');
+        const { sendReply } = await import('../services/evolutionApi.js');
+        await sendReply(
+            instance,
+            message.key.remoteJid,
+            'Ocorreu um erro ao processar o comando. Tente novamente mais tarde.',
+            message.key.id
+        );
     }
 };
 

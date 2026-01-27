@@ -1,124 +1,42 @@
-import { spawn } from 'child_process';
-import ffmpeg from 'ffmpeg-static';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-import sharp from 'sharp';
-import pkg from 'whatsapp-web.js';
-const { MessageMedia } = pkg;
+import { downloadMedia, sendSticker, sendReply } from '../services/evolutionApi.js';
 
-const stickerCommand = async (msg) => {
+const stickerCommand = async (message, instance) => {
     try {
-        // Verifica se a mensagem tem uma mídia
-        if (!msg.hasMedia) {
-            console.log("Mensagem não contém mídia");
-            await msg.reply('Por favor, envie uma imagem, GIF ou vídeo junto com o comando !sticker');
+        // Verifica se a mensagem é uma imagem ou se tem uma imagem citada
+        const isImage = message.message?.imageMessage;
+        const isQuotedImage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+
+        if (!isImage && !isQuotedImage) {
+            await sendReply(
+                instance,
+                message.key.remoteJid,
+                'Por favor, envie uma imagem com o comando !sticker ou responda a uma imagem com o comando.',
+                message.key.id
+            );
             return;
         }
 
-        // Obtém a mídia
-        const media = await msg.downloadMedia();
-        console.log("Tipo de mídia recebida:", media.mimetype);
+        // No Evolution API, podemos baixar a mídia usando o messageId
+        const mediaData = await downloadMedia(instance, message.key.id);
 
-        // Verifica se é uma imagem, GIF ou vídeo
-        if (!media.mimetype.startsWith('image/') && !media.mimetype.startsWith('video/')) {
-            console.log("Mídia não é uma imagem, GIF ou vídeo");
-            await msg.reply('Por favor, envie apenas imagens, GIFs ou vídeos para converter em sticker');
-            return;
-        }
-
-        // Verifica se é um GIF ou vídeo
-        const isGif = media.mimetype === 'image/gif' || media.mimetype === 'image/webp';
-        const isVideo = media.mimetype.startsWith('video/');
-        console.log("É GIF?", isGif);
-        console.log("É Vídeo?", isVideo);
-
-        let processedMedia;
-        if (isVideo) {
-            // Cria um diretório temporário
-            const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'sticker-'));
-            const inputPath = path.join(tempDir, 'input.mp4');
-            const outputPath = path.join(tempDir, 'output.webp');
-
-            // Salva o vídeo temporariamente
-            await fs.promises.writeFile(inputPath, Buffer.from(media.data, 'base64'));
-
-            // Converte o vídeo para WebP animado
-            await new Promise((resolve, reject) => {
-                const ffmpegProcess = spawn(ffmpeg, [
-                    '-i', inputPath,
-                    '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000',
-                    '-c:v', 'libwebp',
-                    '-loop', '0',
-                    '-preset', 'picture',
-                    '-an',
-                    '-vsync', '0',
-                    outputPath
-                ]);
-
-                ffmpegProcess.stderr.on('data', (data) => {
-                    console.log(`FFmpeg: ${data}`);
-                });
-
-                ffmpegProcess.on('close', (code) => {
-                    if (code === 0) {
-                        resolve();
-                    } else {
-                        reject(new Error(`FFmpeg process exited with code ${code}`));
-                    }
-                });
-            });
-
-            // Lê o arquivo WebP processado
-            processedMedia = await fs.promises.readFile(outputPath);
-
-            // Limpa os arquivos temporários
-            await fs.promises.rm(tempDir, { recursive: true, force: true });
-        } else if (isGif) {
-            try {
-                // Para GIFs, tenta processar com sharp mantendo a animação
-                processedMedia = await sharp(Buffer.from(media.data, 'base64'))
-                    .resize(512, 512, {
-                        fit: 'contain',
-                        background: { r: 0, g: 0, b: 0, alpha: 0 }
-                    })
-                    .toBuffer();
-                console.log("GIF processado com sucesso");
-            } catch (gifError) {
-                console.error("Erro ao processar GIF:", gifError);
-                // Se falhar, tenta usar o GIF original
-                processedMedia = Buffer.from(media.data, 'base64');
-            }
+        if (mediaData && mediaData.base64) {
+            await sendSticker(
+                instance,
+                message.key.remoteJid,
+                mediaData.base64
+            );
         } else {
-            // Para imagens estáticas, processa com sharp
-            processedMedia = await sharp(Buffer.from(media.data, 'base64'))
-                .resize(512, 512, {
-                    fit: 'contain',
-                    background: { r: 0, g: 0, b: 0, alpha: 0 }
-                })
-                .webp({ quality: 100 })
-                .toBuffer();
+            throw new Error('Não foi possível obter os dados da imagem');
         }
-
-        console.log("Tamanho do media processado:", processedMedia.length);
-
-        const stickerMedia = new MessageMedia(
-            'image/webp',
-            processedMedia.toString('base64'),
-            'sticker.webp'
-        );
-
-        const chat = await msg.getChat();
-        await chat.sendMessage(stickerMedia, {
-            sendMediaAsSticker: true,
-            stickerName: 'Gelado Bot Sticker',
-            stickerAuthor: 'dnsouzadev'
-        })
 
     } catch (error) {
-        console.error('Erro detalhado ao processar sticker:', error);
-        console.error('Stack trace:', error.stack);
-        await msg.reply('Desculpe, ocorreu um erro ao processar o sticker. Tente novamente.');
+        console.error('Erro ao criar sticker:', error);
+        await sendReply(
+            instance,
+            message.key.remoteJid,
+            'Ocorreu um erro ao transformar a imagem em sticker. Verifique se a sua instância da Evolution API está com a opção de download de mídia ativa.',
+            message.key.id
+        );
     }
 };
 

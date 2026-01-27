@@ -1,51 +1,28 @@
 import axios from 'axios';
+import { sendReply } from '../services/evolutionApi.js';
 
-const rankValorantCommand = async (msg) => {
+const rankValorantCommand = async (message, instance) => {
     try {
-        // Pega os argumentos após o comando
-        const args = msg.body.split(' ');
-        const playerInfo = args.slice(1).join(' '); // Pega tudo após o comando
+        const messageContent = message.message?.conversation || 
+                              message.message?.extendedTextMessage?.text || '';
+        const args = messageContent.split(' ');
+        const player = args[1]; // Formato Nome#Tag
 
-        if (!playerInfo) {
-            await msg.reply('Por favor, forneça o nome do jogador no formato: !rank nome#tag\nExemplo: !rank beg forgiveness#0x0');
+        if (!player || !player.includes('#')) {
+            await sendReply(instance, message.key.remoteJid, 'Uso correto: !rank Nome#Tag', message.key.id);
             return;
         }
 
-        // Faz o split do nome e tag
-        const [nick, tag] = playerInfo.split('#');
+        const [name, tag] = player.split('#');
+        const response = await axios.get(`https://api.henrikdev.xyz/valorant/v1/mmr/br/${name}/${tag}`);
 
-        if (!nick || !tag) {
-            await msg.reply('Formato inválido. Use: !rank nome#tag\nExemplo: !rank beg forgiveness#0x0');
-            return;
-        }
+        const data = response.data.data;
+        const rankMsg = `🎮 *Valorant Rank: ${player}*\n\nRank: ${data.currenttierpatched}\nMMR: ${data.ranking_in_tier}\nÚltima variação: ${data.mmr_change_to_last_game}`;
 
-        // Função para fazer a requisição com retry
-        const makeRequest = async (attempt = 1) => {
-            try {
-                const response = await axios.get(`https://api.kyroskoh.xyz/valorant/v1/mmr/br/${encodeURIComponent(nick)}/${encodeURIComponent(tag)}?show=combo&display=0`);
-                return response.data;
-            } catch (error) {
-                if (attempt < 8) {
-                    console.log(`Tentativa ${attempt} falhou, tentando novamente...`);
-                    // Espera 1 segundo antes de tentar novamente
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    return makeRequest(attempt + 1);
-                }
-                throw error;
-            }
-        };
-
-        // Faz a requisição com retry
-        const data = await makeRequest();
-
-        // Formata a mensagem com as informações do rank
-        const message = `🎮 ${nick} -> Elo: ${data}`;
-
-        // Envia a mensagem formatada
-        await msg.reply(message);
+        await sendReply(instance, message.key.remoteJid, rankMsg, message.key.id);
     } catch (error) {
-        console.error('Erro ao buscar rank após 5 tentativas:', error);
-        await msg.reply('Desculpe, ocorreu um erro ao buscar as informações do rank. Verifique se o nome e tag estão corretos.');
+        console.error('Erro Valorant:', error);
+        await sendReply(instance, message.key.remoteJid, 'Jogador não encontrado ou API offline.', message.key.id);
     }
 };
 

@@ -1,26 +1,31 @@
-const everyoneCommand = async (msg) => {
+import { getGroupMetadata, sendMessage } from '../services/evolutionApi.js';
+
+const everyoneCommand = async (message, instance) => {
     try {
-        // Verifica se a mensagem veio de um grupo
-        if (!msg.from.includes('g.us')) {
-            await msg.reply('Este comando só pode ser usado em grupos!');
-            return;
-        }
+        // Busca informações do grupo
+        const groupMetadata = await getGroupMetadata(instance, message.key.remoteJid);
 
-        const chat = await msg.getChat();
+        // Pega todos os participantes
+        const participants = groupMetadata.participants || [];
 
-        let text = 'Chamando ';
-        let mentions = [];
+        // Cria a lista de menções
+        const mentions = participants.map(p => p.id);
+        const mentionText = participants.map(p => `@${p.id.split('@')[0]}`).join(' ');
 
-        for (let participant of chat.participants) {
-            mentions.push(`${participant.id.user}@c.us`);
-            text += `@${participant.id.user} `;
-        }
-
-        await chat.sendMessage(text, { mentions });
+        // Envia mensagem marcando todos
+        await sendMessage(
+            instance,
+            message.key.remoteJid,
+            `📢 *Atenção todos!*\n\n${mentionText}`
+        );
     } catch (error) {
-        console.error('Erro ao executar comando everyone:', error);
-        await msg.reply('Desculpe, ocorreu um erro ao executar o comando. Tente novamente.');
+        console.error('Erro ao marcar todos:', error);
+        await sendMessage(
+            instance,
+            message.key.remoteJid,
+            'Desculpe, não consegui marcar todos os membros do grupo.'
+        );
     }
-}
+};
 
 export default everyoneCommand;

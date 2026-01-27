@@ -1,7 +1,7 @@
 {
-  "name": "chatbot-whatsapp",
-  "version": "1.0.0",
-  "description": "Bot de WhatsApp com comandos diversos",
+  "name": "chatbot-whatsapp-evolution",
+  "version": "2.0.0",
+  "description": "Bot de WhatsApp refatorado para Evolution API",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
@@ -17,10 +17,11 @@
     "@google/genai": "^0.8.0",
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",
-    "ffmpeg-static": "^5.2.0",
+    "express": "^4.18.2",
     "openai": "^4.28.0",
-    "qrcode-terminal": "^0.12.0",
-    "sharp": "^0.33.2",
-    "whatsapp-web.js": "^1.23.0"
+    "sharp": "^0.33.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
