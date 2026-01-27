@@ -61,17 +61,17 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Verifica se o bot foi mencionado
-        const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        const botNumber = process.env.BOT_NUMBER; // Número do bot no formato 5511999999999
+        //const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        //const botNumber = process.env.BOT_NUMBER; // Número do bot no formato 5511999999999
 
-        if (mentions.includes(`${botNumber}@s.whatsapp.net`)) {
-            await sendReply(
-                instance,
-                message.key.remoteJid,
-                "Desculpe, não comerei seu fundo",
-                message.key.id
-            );
-        }
+        //if (mentions.includes(`${botNumber}@s.whatsapp.net`)) {
+         //   await sendReply(
+         //       instance,
+          //      message.key.remoteJid,
+          //      "Desculpe, não comerei seu fundo",
+           //     message.key.id
+           // );
+        //}
 
     } catch (error) {
         console.error('Erro ao processar webhook:', error);
