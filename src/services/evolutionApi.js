@@ -105,16 +105,19 @@ export const getGroupMetadata = async (instance, groupJid) => {
 };
 
 /**
- * Baixa mídia de uma mensagem
+ * Converte mídia de uma mensagem para Base64
  */
 export const downloadMedia = async (instance, messageId) => {
     try {
-        const response = await api.get(`/message/downloadMedia/${instance}`, {
-            params: { messageId }
+        // O endpoint correto para converter a mídia da mensagem em base64
+        const response = await api.post(`/message/convertPayload/${instance}`, {
+            messageId: messageId
         });
-        return response.data;
+        
+        // A Evolution API retorna o base64 dentro de um objeto
+        return response.data; 
     } catch (error) {
-        console.error('Erro ao baixar mídia:', error.response?.data || error.message);
+        console.error('Erro ao converter mídia:', error.response?.data || error.message);
         throw error;
     }
 };
