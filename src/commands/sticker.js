@@ -2,7 +2,6 @@ import { downloadMedia, sendSticker, sendReply } from '../services/evolutionApi.
 
 const stickerCommand = async (message, instance) => {
     try {
-        // Verifica se a mensagem é uma imagem ou se tem uma imagem citada
         const isImage = message.message?.imageMessage;
         const isQuotedImage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
 
@@ -16,17 +15,27 @@ const stickerCommand = async (message, instance) => {
             return;
         }
 
-        // No Evolution API, podemos baixar a mídia usando o messageId
-        const mediaData = await downloadMedia(instance, message.key.id);
+        // Se for imagem citada, precisamos do ID da mensagem citada
+        const messageId = isQuotedImage 
+            ? message.message.extendedTextMessage.contextInfo.stanzaId 
+            : message.key.id;
 
-        if (mediaData && mediaData.base64) {
+        // Avisa que está processando (opcional)
+        // await sendReply(instance, message.key.remoteJid, '⏳ Criando seu sticker...', message.key.id);
+
+        const mediaData = await downloadMedia(instance, messageId);
+
+        // A Evolution API costuma retornar { base64: "..." } ou o próprio base64
+        const base64 = mediaData.base64 || mediaData;
+
+        if (base64) {
             await sendSticker(
                 instance,
                 message.key.remoteJid,
-                mediaData.base64
+                base64
             );
         } else {
-            throw new Error('Não foi possível obter os dados da imagem');
+            throw new Error('Não foi possível obter o Base64 da imagem');
         }
 
     } catch (error) {
@@ -34,7 +43,7 @@ const stickerCommand = async (message, instance) => {
         await sendReply(
             instance,
             message.key.remoteJid,
-            'Ocorreu um erro ao transformar a imagem em sticker. Verifique se a sua instância da Evolution API está com a opção de download de mídia ativa.',
+            '❌ Erro ao criar sticker. Verifique se a instância tem permissão para ler mídias.',
             message.key.id
         );
     }
