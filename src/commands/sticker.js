@@ -1,4 +1,5 @@
-import { downloadMedia, sendSticker, sendReply } from '../services/evolutionApi.js';
+import axios from 'axios';
+import { sendSticker, sendReply } from '../services/evolutionApi.js';
 
 const stickerCommand = async (message, instance) => {
     try {
@@ -15,35 +16,39 @@ const stickerCommand = async (message, instance) => {
             return;
         }
 
-        // Se for imagem citada, precisamos do ID da mensagem citada
-        const messageId = isQuotedImage 
-            ? message.message.extendedTextMessage.contextInfo.stanzaId 
-            : message.key.id;
+        // Pega a URL da imagem
+        const imageUrl = isImage?.url || isQuotedImage?.url;
 
-        // Avisa que está processando (opcional)
-        // await sendReply(instance, message.key.remoteJid, '⏳ Criando seu sticker...', message.key.id);
-
-        const mediaData = await downloadMedia(instance, messageId);
-
-        // A Evolution API costuma retornar { base64: "..." } ou o próprio base64
-        const base64 = mediaData.base64 || mediaData;
-
-        if (base64) {
-            await sendSticker(
-                instance,
-                message.key.remoteJid,
-                base64
-            );
-        } else {
-            throw new Error('Não foi possível obter o Base64 da imagem');
+        if (!imageUrl) {
+            throw new Error('URL da imagem não encontrada');
         }
 
+        console.log('URL da imagem:', imageUrl);
+
+        // Baixa a imagem e converte para base64
+        const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000 // 30 segundos de timeout
+        });
+
+        // Converte para base64
+        const base64Image = Buffer.from(response.data, 'binary').toString('base64');
+        const mimeType = response.headers['content-type'] || 'image/jpeg';
+        const base64WithPrefix = `data:${mimeType};base64,${base64Image}`;
+
+        // Envia como sticker
+        await sendSticker(
+            instance,
+            message.key.remoteJid,
+            base64WithPrefix
+        );
+
     } catch (error) {
-        console.error('Erro ao criar sticker:', error);
+        console.error('Erro ao criar sticker:', error.message);
         await sendReply(
             instance,
             message.key.remoteJid,
-            '❌ Erro ao criar sticker. Verifique se a instância tem permissão para ler mídias.',
+            '❌ Erro ao criar sticker. A imagem pode ter expirado ou não está acessível.',
             message.key.id
         );
     }
