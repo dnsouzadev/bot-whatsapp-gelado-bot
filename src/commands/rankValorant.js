@@ -14,7 +14,8 @@ const rankValorantCommand = async (message, instance) => {
         }
 
         const [name, tag] = player.split('#');
-        const response = await axios.get(`https://api.henrikdev.xyz/valorant/v1/mmr/br/${name}/${tag}`);
+        //https://vaccie.pythonanywhere.com/mmr/vaccie/666/eu
+        const response = await axios.get(`https://vaccie.pythonanywhere.com/mmr/${name}/${tag}/br`);
 
         const data = response.data.data;
         const rankMsg = `🎮 *Valorant Rank: ${player}*\n\nRank: ${data.currenttierpatched}\nMMR: ${data.ranking_in_tier}\nÚltima variação: ${data.mmr_change_to_last_game}`;
