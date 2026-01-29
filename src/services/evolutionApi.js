@@ -26,7 +26,7 @@ export const sendMessage = async (instance, remoteJid, text, mentions = []) => {
         };
 
         if (mentions && mentions.length > 0) {
-            payload.mentions = mentions;
+            payload.mentioned = mentions;
         }
 
         const response = await api.post(`/message/sendText/${instance}`, payload);
