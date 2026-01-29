@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import handleCommand from './commands/index.js';
 import { sendMessage, sendReply } from './services/evolutionApi.js';
+import { handleCreationStep } from './services/customCommandService.js';
 
 dotenv.config();
 
@@ -51,6 +52,16 @@ app.post('/webhook', async (req, res) => {
 
         console.log('Mensagem recebida:', messageContent);
         console.log('De:', message.key.remoteJid);
+
+        // Verifica se o usuário está criando um comando personalizado
+        const isCreating = await handleCreationStep(
+            instance,
+            message.key.remoteJid,
+            message,
+            message.key.id
+        );
+
+        if (isCreating) return;
 
         // Verifica se é um comando (começa com !)
         if (messageContent.startsWith('!')) {

@@ -4,13 +4,15 @@ import { sendSticker, sendReply, downloadMedia } from '../services/evolutionApi.
 const stickerCommand = async (message, instance) => {
     try {
         const isImage = message.message?.imageMessage;
+        const isVideo = message.message?.videoMessage;
         const isQuotedImage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+        const isQuotedVideo = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage;
 
-        if (!isImage && !isQuotedImage) {
+        if (!isImage && !isQuotedImage && !isVideo && !isQuotedVideo) {
             await sendReply(
                 instance,
                 message.key.remoteJid,
-                'Por favor, envie uma imagem com o comando !sticker ou responda a uma imagem com o comando.',
+                'Por favor, envie uma imagem/gif/vídeo com o comando !sticker ou responda a uma mídia com o comando.',
                 message.key.id
             );
             return;
@@ -18,7 +20,7 @@ const stickerCommand = async (message, instance) => {
 
         let mediaMessage = message;
 
-        if (isQuotedImage) {
+        if (isQuotedImage || isQuotedVideo) {
             const quotedContext = message.message.extendedTextMessage.contextInfo;
             // Constrói um objeto de mensagem simulado para o conteúdo citado
             mediaMessage = {
