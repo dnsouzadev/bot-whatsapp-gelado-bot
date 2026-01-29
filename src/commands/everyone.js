@@ -4,9 +4,17 @@ const everyoneCommand = async (message, instance) => {
     try {
         // Busca informações do grupo
         const groupMetadata = await getGroupMetadata(instance, message.key.remoteJid);
+        
+        console.log('Group Metadata:', JSON.stringify(groupMetadata, null, 2));
 
-        // Pega todos os participantes
-        const participants = groupMetadata.participants || [];
+        // Pega todos os participantes (tenta tratar se for array ou objeto)
+        const data = Array.isArray(groupMetadata) ? groupMetadata[0] : groupMetadata;
+        const participants = data?.participants || [];
+
+        if (participants.length === 0) {
+            await sendMessage(instance, message.key.remoteJid, 'Não encontrei participantes neste grupo.');
+            return;
+        }
 
         // Cria a lista de menções
         const mentions = participants.map(p => p.id);
