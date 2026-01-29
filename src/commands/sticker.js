@@ -60,7 +60,7 @@ const stickerCommand = async (message, instance) => {
             instance,
             message.key.remoteJid,
             stickerPayload,
-            isAnimated ? { isAnimated: true } : {}
+            isAnimated ? { isAnimated: true, mimetype: mime } : {}
         );
 
     } catch (error) {
