@@ -48,7 +48,8 @@ app.post('/webhook', async (req, res) => {
         // Pega o conteúdo da mensagem
         const messageContent = message.message?.conversation || 
                               message.message?.extendedTextMessage?.text || 
-                              message.message?.imageMessage?.caption || '';
+                              message.message?.imageMessage?.caption || 
+                              message.message?.videoMessage?.caption || '';
 
         console.log('Mensagem recebida:', messageContent);
         console.log('De:', message.key.remoteJid);

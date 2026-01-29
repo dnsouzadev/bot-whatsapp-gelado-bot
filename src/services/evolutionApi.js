@@ -99,7 +99,8 @@ export const sendSticker = async (instance, remoteJid, stickerData) => {
  */
 export const getGroupMetadata = async (instance, groupJid) => {
     try {
-        const response = await api.get(`/group/findGroupInfo/${instance}`, {
+        // Tenta o endpoint findGroupInfos (plural) que é o comum
+        const response = await api.get(`/group/findGroupInfos/${instance}`, {
             params: { groupJid }
         });
         return response.data;
