@@ -1,6 +1,12 @@
 import { sendReply } from '../services/evolutionApi.js';
+import { listCustomCommands } from '../services/customCommandService.js';
 
 const helpCommand = async (message, instance) => {
+    const customCommands = await listCustomCommands();
+    const customCommandsList = customCommands.length > 0 
+        ? customCommands.map(cmd => `• !${cmd}`).join('\n')
+        : '• Nenhum comando personalizado criado';
+
     const helpMessage = `
 🤖 *Bot de WhatsApp - Comandos Disponíveis*
 
@@ -23,12 +29,17 @@ const helpCommand = async (message, instance) => {
 😄 *Diversão*
 • !gato - Foto aleatória de gato
 • !chat [mensagem] - Conversa com IA
+• !smurfdomuca - Arte smurfdomuca
 
 📱 *Outros*
 • !sticker - Converte imagem em sticker
+• !make [nome] - Cria comando personalizado
 • !everyone - Marca todos do grupo
 • !ping - Verifica se o bot está online
 • !ajuda - Mostra esta mensagem
+
+🛠️ *Personalizados*
+${customCommandsList}
 
 _Bot funciona apenas em grupos!_
     `.trim();

@@ -65,10 +65,21 @@ const stickerCommand = async (message, instance) => {
 
     } catch (error) {
         console.error('Erro ao criar sticker:', error.message);
+        
+        // Verifica se é o erro de formato de imagem não suportado (comum quando falta ffmpeg no server)
+        const errorMessage = error.response?.data?.response?.message || '';
+        const isFormatError = errorMessage.includes("unsupported image format");
+        
+        let replyText = '❌ Erro ao criar sticker. Tente novamente.';
+        
+        if (isFormatError) {
+            replyText = '❌ Desculpe, este servidor não suporta stickers animados (GIF/Vídeo) no momento (falta FFmpeg). Apenas imagens estáticas são suportadas.';
+        }
+
         await sendReply(
             instance,
             message.key.remoteJid,
-            '❌ Erro ao criar sticker. Tente novamente.',
+            replyText,
             message.key.id
         );
     }
