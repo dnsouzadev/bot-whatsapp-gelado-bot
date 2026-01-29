@@ -51,9 +51,8 @@ const stickerCommand = async (message, instance) => {
         // Tenta usar o mimetype retornado, ou fallback para image/jpeg
         const mime = result.mimetype || 'image/jpeg';
         
-        // Tenta enviar apenas o raw base64, pois algumas versões da API preferem assim
-        // ou a API adiciona o prefixo internamente
-        const stickerPayload = result.base64; 
+        // Monta o Data URI completo para enviar via sendMedia
+        const stickerPayload = `data:${mime};base64,${result.base64}`;
 
         // Envia como sticker
         await sendSticker(

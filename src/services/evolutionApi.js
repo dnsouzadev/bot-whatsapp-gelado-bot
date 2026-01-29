@@ -18,12 +18,18 @@ const api = axios.create({
 /**
  * Envia uma mensagem de texto
  */
-export const sendMessage = async (instance, remoteJid, text) => {
+export const sendMessage = async (instance, remoteJid, text, mentions = []) => {
     try {
-        const response = await api.post(`/message/sendText/${instance}`, {
+        const payload = {
             number: remoteJid,
             text: text
-        });
+        };
+
+        if (mentions && mentions.length > 0) {
+            payload.mentions = mentions;
+        }
+
+        const response = await api.post(`/message/sendText/${instance}`, payload);
         return response.data;
     } catch (error) {
         console.error('Erro ao enviar mensagem:', error.response?.data || error.message);
@@ -77,9 +83,12 @@ export const sendImage = async (instance, remoteJid, imageUrl, caption = '') => 
  */
 export const sendSticker = async (instance, remoteJid, stickerData) => {
     try {
-        const response = await api.post(`/message/sendSticker/${instance}`, {
+        // Usando o endpoint genérico sendMedia com type sticker
+        // Costuma ser mais robusto para aceitar base64/dataURI
+        const response = await api.post(`/message/sendMedia/${instance}`, {
             number: remoteJid,
-            sticker: stickerData
+            mediatype: 'sticker',
+            media: stickerData
         });
         return response.data;
     } catch (error) {

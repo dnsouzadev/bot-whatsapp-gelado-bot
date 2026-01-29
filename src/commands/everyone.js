@@ -16,7 +16,8 @@ const everyoneCommand = async (message, instance) => {
         await sendMessage(
             instance,
             message.key.remoteJid,
-            `📢 *Atenção todos!*\n\n${mentionText}`
+            `📢 *Atenção todos!*\n\n${mentionText}`,
+            mentions
         );
     } catch (error) {
         console.error('Erro ao marcar todos:', error);
