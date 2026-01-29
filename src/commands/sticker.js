@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { sendSticker, sendReply } from '../services/evolutionApi.js';
+import { sendSticker, sendReply, downloadMedia } from '../services/evolutionApi.js';
 
 const stickerCommand = async (message, instance) => {
     try {
@@ -16,25 +16,32 @@ const stickerCommand = async (message, instance) => {
             return;
         }
 
-        // Pega a URL da imagem
-        const imageUrl = isImage?.url || isQuotedImage?.url;
+        let mediaMessage = message;
 
-        if (!imageUrl) {
-            throw new Error('URL da imagem não encontrada');
+        if (isQuotedImage) {
+            const quotedContext = message.message.extendedTextMessage.contextInfo;
+            // Constrói um objeto de mensagem simulado para o conteúdo citado
+            mediaMessage = {
+                key: {
+                    remoteJid: message.key.remoteJid,
+                    fromMe: false, 
+                    id: quotedContext.stanzaId,
+                    participant: quotedContext.participant // Importante para grupos
+                },
+                message: quotedContext.quotedMessage
+            };
         }
 
-        console.log('URL da imagem:', imageUrl);
+        console.log('Baixando mídia...');
 
-        // Baixa a imagem e converte para base64
-        const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 30000 // 30 segundos de timeout
-        });
+        // Usa a API do Evolution para obter o base64
+        const result = await downloadMedia(instance, mediaMessage);
 
-        // Converte para base64
-        const base64Image = Buffer.from(response.data, 'binary').toString('base64');
-        const mimeType = response.headers['content-type'] || 'image/jpeg';
-        const base64WithPrefix = `data:${mimeType};base64,${base64Image}`;
+        if (!result || !result.base64) {
+            throw new Error('Não foi possível obter o base64 da imagem.');
+        }
+
+        const base64WithPrefix = `data:image/jpeg;base64,${result.base64}`;
 
         // Envia como sticker
         await sendSticker(
@@ -48,7 +55,7 @@ const stickerCommand = async (message, instance) => {
         await sendReply(
             instance,
             message.key.remoteJid,
-            '❌ Erro ao criar sticker. A imagem pode ter expirado ou não está acessível.',
+            '❌ Erro ao criar sticker. Tente novamente.',
             message.key.id
         );
     }
