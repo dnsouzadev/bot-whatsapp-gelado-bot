@@ -81,12 +81,15 @@ export const sendImage = async (instance, remoteJid, imageUrl, caption = '') => 
 /**
  * Envia um sticker
  */
-export const sendSticker = async (instance, remoteJid, stickerData) => {
+export const sendSticker = async (instance, remoteJid, stickerData, options = {}) => {
     try {
-        const response = await api.post(`/message/sendSticker/${instance}`, {
+        const payload = {
             number: remoteJid,
-            sticker: stickerData
-        });
+            sticker: stickerData,
+            ...options
+        };
+
+        const response = await api.post(`/message/sendSticker/${instance}`, payload);
         return response.data;
     } catch (error) {
         console.error('Erro ao enviar sticker:', JSON.stringify(error.response?.data || error.message, null, 2));

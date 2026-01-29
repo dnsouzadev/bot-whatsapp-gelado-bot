@@ -50,6 +50,7 @@ const stickerCommand = async (message, instance) => {
 
         // Tenta usar o mimetype retornado, ou fallback para image/jpeg
         const mime = result.mimetype || 'image/jpeg';
+        const isAnimated = mime.startsWith('video/');
         
         // Envia apenas o raw base64 para o endpoint sendSticker
         const stickerPayload = result.base64;
@@ -58,7 +59,8 @@ const stickerCommand = async (message, instance) => {
         await sendSticker(
             instance,
             message.key.remoteJid,
-            stickerPayload
+            stickerPayload,
+            isAnimated ? { isAnimated: true } : {}
         );
 
     } catch (error) {

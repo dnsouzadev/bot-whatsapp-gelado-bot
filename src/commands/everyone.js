@@ -17,8 +17,13 @@ const everyoneCommand = async (message, instance) => {
         }
 
         // Cria a lista de menções
-        const mentions = participants.map(p => p.id);
-        const mentionText = participants.map(p => `@${p.id.split('@')[0]}`).join(' ');
+        // Prioriza o phoneNumber se existir (para grupos que usam LID)
+        const mentions = participants.map(p => p.phoneNumber || p.id);
+        
+        const mentionText = mentions.map(jid => {
+            const number = jid.split('@')[0];
+            return `@${number}`;
+        }).join(' ');
 
         // Envia mensagem marcando todos
         await sendMessage(
