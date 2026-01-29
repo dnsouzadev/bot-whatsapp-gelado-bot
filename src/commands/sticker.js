@@ -38,15 +38,17 @@ const stickerCommand = async (message, instance) => {
         const result = await downloadMedia(instance, mediaMessage);
 
         console.log('Resultado downloadMedia:', result ? Object.keys(result) : 'null');
-        if (result?.base64) {
-            console.log('Tamanho do base64:', result.base64.length);
-        }
-
+        
         if (!result || !result.base64) {
             throw new Error('Não foi possível obter o base64 da imagem.');
         }
 
-        const base64WithPrefix = `data:image/jpeg;base64,${result.base64}`;
+        console.log('Mimetype:', result.mimetype);
+        console.log('Base64 start:', result.base64.substring(0, 30));
+
+        // Tenta usar o mimetype retornado, ou fallback para image/jpeg
+        const mime = result.mimetype || 'image/jpeg';
+        const base64WithPrefix = `data:${mime};base64,${result.base64}`;
 
         // Envia como sticker
         await sendSticker(
