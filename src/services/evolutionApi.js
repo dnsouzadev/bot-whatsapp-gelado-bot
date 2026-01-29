@@ -83,12 +83,9 @@ export const sendImage = async (instance, remoteJid, imageUrl, caption = '') => 
  */
 export const sendSticker = async (instance, remoteJid, stickerData) => {
     try {
-        // Usando o endpoint genérico sendMedia com type sticker
-        // Costuma ser mais robusto para aceitar base64/dataURI
-        const response = await api.post(`/message/sendMedia/${instance}`, {
+        const response = await api.post(`/message/sendSticker/${instance}`, {
             number: remoteJid,
-            mediatype: 'sticker',
-            media: stickerData
+            sticker: stickerData
         });
         return response.data;
     } catch (error) {

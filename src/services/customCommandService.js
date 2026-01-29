@@ -71,15 +71,15 @@ export const handleCreationStep = async (instance, remoteJid, message, messageId
                 if (!mediaData || !mediaData.base64) {
                     throw new Error('Falha ao baixar sticker');
                 }
-                const mime = mediaData.mimetype || 'image/webp';
+                // Salva apenas o base64 puro
                 commandData = {
                     type: 'sticker',
-                    content: `data:${mime};base64,${mediaData.base64}` // Salva como Data URI
+                    content: mediaData.base64 
                 };
             } catch (err) {
                 console.error('Erro ao baixar sticker para custom command:', err);
                 await sendReply(instance, remoteJid, '❌ Erro ao salvar o sticker. Tente novamente.', messageId);
-                return true; // Mantém no fluxo ou sai? Retornar true consome a mensagem.
+                return true; 
             }
         } else {
             // Processa Texto
