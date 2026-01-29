@@ -37,6 +37,11 @@ const stickerCommand = async (message, instance) => {
         // Usa a API do Evolution para obter o base64
         const result = await downloadMedia(instance, mediaMessage);
 
+        console.log('Resultado downloadMedia:', result ? Object.keys(result) : 'null');
+        if (result?.base64) {
+            console.log('Tamanho do base64:', result.base64.length);
+        }
+
         if (!result || !result.base64) {
             throw new Error('Não foi possível obter o base64 da imagem.');
         }
