@@ -5,8 +5,10 @@ const rankValorantCommand = async (message, instance) => {
     try {
         const messageContent = message.message?.conversation || 
                               message.message?.extendedTextMessage?.text || '';
-        const args = messageContent.split(' ');
-        const player = args[1]; // Formato Nome#Tag
+        
+        // Remove o comando (!rank) e pega o resto da string
+        const args = messageContent.trim().split(/\s+/);
+        const player = args.slice(1).join(' '); // Junta tudo após o comando com espaços
 
         if (!player || !player.includes('#')) {
             await sendReply(instance, message.key.remoteJid, 'Uso correto: !rank Nome#Tag', message.key.id);
