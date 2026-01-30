@@ -64,12 +64,15 @@ export const handleImageRegistrationStep = async (instance, remoteJid, message, 
             return true;
         }
 
+        const caption = message.message?.imageMessage?.caption || 'Sem nome';
+
         await loadDb();
         
         const newImage = {
             id: uuidv4(),
             base64: mediaData.base64,
             sender: remoteJid,
+            name: caption,
             score: 0
         };
 
@@ -77,7 +80,7 @@ export const handleImageRegistrationStep = async (instance, remoteJid, message, 
         await saveDb();
         
         delete activeRegistrations[remoteJid];
-        await sendReply(instance, remoteJid, '✅ Imagem registrada com sucesso!', messageId);
+        await sendReply(instance, remoteJid, `✅ Imagem "${caption}" registrada com sucesso!`, messageId);
         
         return true;
     } catch (error) {
@@ -126,7 +129,8 @@ export const sendRandomImage = async (instance, remoteJid) => {
         // We use sendImage which calls the API. 
         // IMPORTANT: The Evolution API response usually contains the message ID (key.id).
         // We need to capture that to track reactions.
-        const response = await sendImage(instance, remoteJid, image.base64, `🏆 Rank: #${rank} | ❤️ Reações: ${image.score}\n\nReaja a esta mensagem para votar!`);
+        const caption = `🏆 Rank: #${rank}\n📛 Nome: ${image.name || 'Sem nome'}\n❤️ Reações: ${image.score}\n\nReaja a esta mensagem para votar!`;
+        const response = await sendImage(instance, remoteJid, image.base64, caption);
         
         // Map the sent message ID to the image ID
         // Note: Response structure depends on Evolution API version. Usually response.key.id
@@ -191,7 +195,7 @@ export const getLeaderboard = async () => {
 
     let msg = '🏆 *Top Imagens Mais Reagidas* 🏆\n\n';
     sorted.forEach((img, index) => {
-        msg += `#${index + 1} - ❤️ ${img.score}\n`;
+        msg += `#${index + 1} - ${img.name || 'Sem nome'} (❤️ ${img.score})\n`;
     });
     
     return msg;

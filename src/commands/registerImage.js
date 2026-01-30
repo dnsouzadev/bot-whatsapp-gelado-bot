@@ -4,7 +4,7 @@ import { startImageRegistration } from '../services/imageRankService.js';
 const registerImageCommand = async (message, instance) => {
     try {
         startImageRegistration(message.key.remoteJid);
-        await sendReply(instance, message.key.remoteJid, '📸 Envie a foto que deseja registrar no ranking.', message.key.id);
+        await sendReply(instance, message.key.remoteJid, '📸 Envie a foto que deseja registrar no ranking.\n💡 Dica: Adicione uma legenda na foto para dar um nome a ela!', message.key.id);
     } catch (error) {
         console.error('Error starting register command:', error);
     }
