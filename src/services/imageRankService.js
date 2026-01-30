@@ -22,10 +22,13 @@ const loadDb = async () => {
     } catch (error) {
         imageDb = {
             images: [], // { id, base64, score, sender }
-            messageMap: {} // messageId: imageId (track which message corresponds to which image)
+            messageMap: {}, // messageId: imageId (track which message corresponds to which image)
+            usage: {} // remoteJid: { date: 'YYYY-MM-DD', count: 0 }
         };
         await saveDb();
     }
+    // Backward compatibility for existing DB
+    if (!imageDb.usage) imageDb.usage = {};
     return imageDb;
 };
 
@@ -89,12 +92,30 @@ export const handleImageRegistrationStep = async (instance, remoteJid, message, 
 export const sendRandomImage = async (instance, remoteJid) => {
     await loadDb();
     
+    // Check usage limit
+    const today = new Date().toISOString().split('T')[0];
+    const userUsage = imageDb.usage[remoteJid] || { date: today, count: 0 };
+
+    if (userUsage.date !== today) {
+        userUsage.date = today;
+        userUsage.count = 0;
+    }
+
+    if (userUsage.count >= 5) {
+        return '🚫 Você já atingiu o limite de 5 imagens aleatórias por dia. Tente novamente amanhã!';
+    }
+
     if (imageDb.images.length === 0) {
         return 'Nenhuma imagem cadastrada.';
     }
 
     const randomIndex = Math.floor(Math.random() * imageDb.images.length);
     const image = imageDb.images[randomIndex];
+    
+    // Increment usage
+    userUsage.count += 1;
+    imageDb.usage[remoteJid] = userUsage;
+    await saveDb();
     
     // Sort to find rank
     const sorted = [...imageDb.images].sort((a, b) => b.score - a.score);
