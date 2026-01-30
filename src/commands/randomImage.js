@@ -3,9 +3,16 @@ import { sendRandomImage } from '../services/imageRankService.js';
 
 const randomImageCommand = async (message, instance) => {
     try {
+        console.log('Executing randomImageCommand...');
         const result = await sendRandomImage(instance, message.key.remoteJid);
+        console.log('Result from sendRandomImage:', result);
+        
         if (typeof result === 'string') {
              await sendReply(instance, message.key.remoteJid, result, message.key.id);
+        } else if (!result) {
+            // If result is undefined/null/false but no error thrown, assume success (image sent) or unhandled case
+            // But sendRandomImage usually returns void if it sends image, or string if error/limit
+            // If it sends image, we don't need to reply text.
         }
     } catch (error) {
         console.error('Error random command:', error);

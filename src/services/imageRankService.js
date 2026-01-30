@@ -94,6 +94,7 @@ export const handleImageRegistrationStep = async (instance, remoteJid, message, 
 
 export const sendRandomImage = async (instance, remoteJid) => {
     await loadDb();
+    console.log('DB Loaded. Images count:', imageDb.images.length);
     
     // Check usage limit
     const today = new Date().toISOString().split('T')[0];

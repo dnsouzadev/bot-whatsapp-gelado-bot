@@ -20,6 +20,12 @@ const helpCommand = async (message, instance) => {
 
 🎮 *Valorant*
 • !rank [nome#tag] - Rank de um jogador
+• !vlr - Últimos resultados mundiais
+
+📷 *Ranking de Imagens*
+• !register - Registra uma foto no ranking (use legenda para dar nome)
+• !random - Mostra uma foto aleatória para votar
+• !imgrank - Mostra o top 10 das fotos
 
 🎲 *Jogos*
 • !dado - Rola um dado (1-6)
@@ -30,6 +36,9 @@ const helpCommand = async (message, instance) => {
 • !gato - Foto aleatória de gato
 • !chat [mensagem] - Conversa com IA
 • !smurfdomuca - Arte smurfdomuca
+
+⏰ *Agendamento*
+• !cron [minutos] - Agenda uma mensagem ou sticker
 
 📱 *Outros*
 • !sticker - Converte imagem em sticker
