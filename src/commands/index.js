@@ -16,6 +16,7 @@ import tabelaBrasileiraoCommand from './tabelaBrasileirao.js';
 import tabelaLibertadoresCommand from './tabelaLibertadores.js';
 import vctamericasCommand from './vctamericas.js';
 import makeCommand from './make.js';
+import vlrCommand from './vlr.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 
 const commands = {
@@ -37,7 +38,8 @@ const commands = {
     'tabelabrasileirao': tabelaBrasileiraoCommand,
     'tabelalibertadores': tabelaLibertadoresCommand,
     'vctamericas': vctamericasCommand,
-    'make': makeCommand
+    'make': makeCommand,
+    'vlr': vlrCommand
 };
 
 const handleCommand = async (message, command, instance) => {
