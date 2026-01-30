@@ -17,6 +17,7 @@ import tabelaLibertadoresCommand from './tabelaLibertadores.js';
 import vctamericasCommand from './vctamericas.js';
 import makeCommand from './make.js';
 import vlrCommand from './vlr.js';
+import cronCommand from './cron.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 
 const commands = {
@@ -39,7 +40,8 @@ const commands = {
     'tabelalibertadores': tabelaLibertadoresCommand,
     'vctamericas': vctamericasCommand,
     'make': makeCommand,
-    'vlr': vlrCommand
+    'vlr': vlrCommand,
+    'cron': cronCommand
 };
 
 const handleCommand = async (message, command, instance) => {

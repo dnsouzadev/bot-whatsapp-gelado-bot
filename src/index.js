@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import handleCommand from './commands/index.js';
 import { sendMessage, sendReply } from './services/evolutionApi.js';
 import { handleCreationStep } from './services/customCommandService.js';
+import { handleCronStep } from './services/cronService.js';
 
 dotenv.config();
 
@@ -63,6 +64,16 @@ app.post('/webhook', async (req, res) => {
         );
 
         if (isCreating) return;
+
+        // Verifica se o usuário está configurando um cron
+        const isCronSetup = await handleCronStep(
+            instance,
+            message.key.remoteJid,
+            message,
+            message.key.id
+        );
+
+        if (isCronSetup) return;
 
         // Verifica se é um comando (começa com !)
         if (messageContent.startsWith('!')) {
