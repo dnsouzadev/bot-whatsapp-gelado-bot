@@ -1,4 +1,4 @@
-import { sendReply, sendSticker, downloadMedia } from './evolutionApi.js';
+import { sendReply, sendMessage, sendSticker, downloadMedia } from './evolutionApi.js';
 
 // Stores users currently setting up a cron: { 'remoteJid': { minutes: 5 } }
 const activeCronSetups = {};
@@ -68,7 +68,7 @@ export const handleCronStep = async (instance, remoteJid, message, messageId) =>
                 if (contentData.type === 'sticker') {
                     await sendSticker(instance, remoteJid, contentData.content);
                 } else {
-                    await sendReply(instance, remoteJid, contentData.content, null); // passing null as quoteId to not quote the original command after 5 mins
+                    await sendMessage(instance, remoteJid, contentData.content); 
                 }
             } catch (error) {
                 console.error('Error executing cron job:', error);
