@@ -18,6 +18,9 @@ import vctamericasCommand from './vctamericas.js';
 import makeCommand from './make.js';
 import vlrCommand from './vlr.js';
 import cronCommand from './cron.js';
+import registerImageCommand from './registerImage.js';
+import randomImageCommand from './randomImage.js';
+import imageRankCommand from './imageRank.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 
 const commands = {
@@ -41,7 +44,10 @@ const commands = {
     'vctamericas': vctamericasCommand,
     'make': makeCommand,
     'vlr': vlrCommand,
-    'cron': cronCommand
+    'cron': cronCommand,
+    'register': registerImageCommand,
+    'random': randomImageCommand,
+    'imgrank': imageRankCommand
 };
 
 const handleCommand = async (message, command, instance) => {

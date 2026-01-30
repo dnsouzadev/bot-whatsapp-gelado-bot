@@ -4,6 +4,7 @@ import handleCommand from './commands/index.js';
 import { sendMessage, sendReply } from './services/evolutionApi.js';
 import { handleCreationStep } from './services/customCommandService.js';
 import { handleCronStep } from './services/cronService.js';
+import { handleImageRegistrationStep, handleReaction } from './services/imageRankService.js';
 
 dotenv.config();
 
@@ -26,6 +27,13 @@ app.post('/webhook', async (req, res) => {
 
         // Responde rapidamente ao Evolution API
         res.status(200).json({ received: true });
+
+        // Handle Reactions
+        if (event === 'messages.reaction') {
+            console.log('Reação recebida:', data);
+            await handleReaction(data);
+            return;
+        }
 
         // Processa apenas mensagens recebidas
         if (event !== 'messages.upsert') return;
@@ -74,6 +82,16 @@ app.post('/webhook', async (req, res) => {
         );
 
         if (isCronSetup) return;
+
+        // Verifica se o usuário está registrando imagem
+        const isRegistering = await handleImageRegistrationStep(
+            instance,
+            message.key.remoteJid,
+            message,
+            message.key.id
+        );
+
+        if (isRegistering) return;
 
         // Verifica se é um comando (começa com !)
         if (messageContent.startsWith('!')) {
