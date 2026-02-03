@@ -322,14 +322,40 @@ export const getLeaderboard = async () => {
     await loadDb();
     const sorted = [...imageDb.images].sort((a, b) => b.score - a.score).slice(0, 10);
     
-    if (sorted.length === 0) return 'Nenhuma imagem no ranking.';
+    if (sorted.length === 0) return { text: 'Nenhuma imagem no ranking.', topImage: null };
 
-    let msg = '🏆 *Top Imagens Mais Reagidas* 🏆\n\n';
+    const medals = ['🥇', '🥈', '🥉'];
+    const totalReactions = sorted.reduce((sum, img) => sum + img.score, 0);
+    
+    let msg = '╔═══════════════════════╗\n';
+    msg += '║   🏆 *RANKING DE IMAGENS* 🏆   ║\n';
+    msg += '╚═══════════════════════╝\n\n';
+    
     sorted.forEach((img, index) => {
-        msg += `#${index + 1} - ${img.name || 'Sem nome'} (❤️ ${img.score})\n`;
+        const position = index + 1;
+        const medal = medals[index] || `${position}º`;
+        const percentage = totalReactions > 0 ? ((img.score / totalReactions) * 100).toFixed(1) : 0;
+        const reactionCount = img.score;
+        
+        // Progress bar (10 chars max)
+        const barLength = Math.min(Math.round((img.score / (sorted[0]?.score || 1)) * 10), 10);
+        const bar = '█'.repeat(barLength) + '░'.repeat(10 - barLength);
+        
+        msg += `${medal} *${img.name || 'Sem nome'}*\n`;
+        msg += `   ❤️ ${reactionCount} reações (${percentage}%)\n`;
+        msg += `   ${bar}\n`;
+        
+        if (index < sorted.length - 1) msg += '\n';
     });
     
-    return msg;
+    msg += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `📊 Total: ${sorted.length} imagens\n`;
+    msg += `💖 ${totalReactions} reações no total`;
+    
+    return {
+        text: msg,
+        topImage: sorted[0] || null
+    };
 };
 
 // --- Dice Logic ---
