@@ -6,8 +6,10 @@ const randomImageCommand = async (message, instance) => {
         console.log('Executing randomImageCommand...');
         
         // Get user number (participant in groups, remoteJid in DMs)
-        const userNumber = message.key.participant?.replace('@s.whatsapp.net', '') || 
+        const userNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
                           message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        
+        console.log('🔍 RANDOM - userNumber extracted:', userNumber);
         
         const result = await sendRandomImage(instance, message.key.remoteJid, userNumber);
         console.log('Result from sendRandomImage:', result);
