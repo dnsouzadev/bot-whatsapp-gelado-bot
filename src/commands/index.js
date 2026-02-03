@@ -24,7 +24,12 @@ import imageRankCommand from './imageRank.js';
 import diceResetCommand from './diceReset.js';
 import profileCommand from './profile.js';
 import clearCommand from './clear.js';
+import rouletteCommand from './roulette.js';
+import duelCommand from './duel.js';
+import giftCommand from './gift.js';
+import banCommand from './ban.js';
 import { getCustomCommand } from '../services/customCommandService.js';
+import { checkBan } from '../services/imageRankService.js';
 
 const commands = {
     'ajuda': helpCommand,
@@ -54,7 +59,14 @@ const commands = {
     'dice': diceResetCommand,
     'profile': profileCommand,
     'me': profileCommand,
-    'clear': clearCommand
+    'clear': clearCommand,
+    'roulette': rouletteCommand,
+    'roleta': rouletteCommand,
+    'duel': duelCommand,
+    'duelo': duelCommand,
+    'gift': giftCommand,
+    'presente': giftCommand,
+    'ban': banCommand
 };
 
 const handleCommand = async (message, command, instance) => {
@@ -62,6 +74,33 @@ const handleCommand = async (message, command, instance) => {
     const commandName = parts[0];
     const args = parts.slice(1);
     const commandHandler = commands[commandName];
+
+    // Check if user is banned (except for ban command itself)
+    if (commandName !== 'ban') {
+        const userNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
+                          message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        
+        const ban = await checkBan(userNumber);
+        if (ban) {
+            const { sendReply } = await import('../services/evolutionApi.js');
+            
+            let banMsg = '🚫 *VOCÊ ESTÁ BANIDO* 🚫\n\n';
+            banMsg += `📋 Motivo: ${ban.reason}\n`;
+            
+            if (ban.until) {
+                const now = Date.now();
+                const remaining = ban.until - now;
+                const hours = Math.floor(remaining / (1000 * 60 * 60));
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                banMsg += `⏰ Expira em: ${hours}h ${minutes}min`;
+            } else {
+                banMsg += `⚠️ Ban permanente`;
+            }
+            
+            await sendReply(instance, message.key.remoteJid, banMsg, message.key.id);
+            return;
+        }
+    }
 
     // Se tiver handler nativo, executa
     if (commandHandler) {

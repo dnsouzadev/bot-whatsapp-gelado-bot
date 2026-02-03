@@ -46,6 +46,22 @@ const loadDb = async () => {
             imageDb.diceUsage = {}; // userNumber: { date: 'YYYY-MM-DD', morning: bool, afternoon: bool, night: bool }
             needsSave = true;
         }
+        if (!imageDb.rouletteUsage) {
+            imageDb.rouletteUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.giftUsage) {
+            imageDb.giftUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.bannedUsers) {
+            imageDb.bannedUsers = {};
+            needsSave = true;
+        }
+        if (!imageDb.activeDuels) {
+            imageDb.activeDuels = {};
+            needsSave = true;
+        }
         
         // Remove old 'diceUsed' field if it exists
         if (imageDb.diceUsed) {
@@ -82,7 +98,11 @@ const loadDb = async () => {
             messageMap: {},
             randomUsage: {},
             reactionUsage: {},
-            diceUsage: {}
+            diceUsage: {},
+            rouletteUsage: {}, // Same as dice - 3 per day
+            giftUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            bannedUsers: {}, // userNumber: { reason: string, until: timestamp or null for permanent }
+            activeDuels: {} // remoteJid: { challenger: userNumber, challenged: userNumber, challengerChoice: string }
         };
         await saveDb();
     }
@@ -458,6 +478,354 @@ export const playDice = async (userNumber, chosenNumber) => {
         
         return `${periodEmoji} *${periodName.toUpperCase()}*\n\n🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n😢 Que pena! Você errou.\n🔄 Tente no próximo período!`;
     }
+};
+
+// --- Roulette Logic ---
+
+export const playRoulette = async (userNumber) => {
+    await loadDb();
+    
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Determine current period
+    let period, periodName, periodEmoji;
+    if (currentHour < 12) {
+        period = 'morning';
+        periodName = 'Manhã';
+        periodEmoji = '🌅';
+    } else if (currentHour < 18) {
+        period = 'afternoon';
+        periodName = 'Tarde';
+        periodEmoji = '☀️';
+    } else {
+        period = 'night';
+        periodName = 'Noite';
+        periodEmoji = '🌙';
+    }
+    
+    // Get or create user roulette usage
+    const userRoulette = imageDb.rouletteUsage[userNumber] || { 
+        date: today, 
+        morning: false, 
+        afternoon: false, 
+        night: false 
+    };
+    
+    // Reset if new day
+    if (userRoulette.date !== today) {
+        userRoulette.date = today;
+        userRoulette.morning = false;
+        userRoulette.afternoon = false;
+        userRoulette.night = false;
+    }
+    
+    // Check if already used in this period
+    if (userRoulette[period]) {
+        let nextPeriodStart, nextPeriodName;
+        if (period === 'morning') {
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setHours(12, 0, 0, 0);
+            nextPeriodName = '☀️ Tarde (12:00)';
+        } else if (period === 'afternoon') {
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setHours(18, 0, 0, 0);
+            nextPeriodName = '🌙 Noite (18:00)';
+        } else {
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setDate(nextPeriodStart.getDate() + 1);
+            nextPeriodStart.setHours(0, 0, 0, 0);
+            nextPeriodName = '🌅 Manhã (00:00)';
+        }
+        
+        const hoursUntil = Math.floor((nextPeriodStart - now) / (1000 * 60 * 60));
+        const minutesUntil = Math.floor(((nextPeriodStart - now) % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `🎰 Você já usou sua roleta da ${periodName} ${periodEmoji}\n\n⏰ Próximo período: ${nextPeriodName}\n🕐 Disponível em: ${hoursUntil}h ${minutesUntil}min`;
+    }
+    
+    // Mark period as used
+    userRoulette[period] = true;
+    imageDb.rouletteUsage[userNumber] = userRoulette;
+    
+    // Roulette prizes
+    const prizes = [
+        { emoji: '💎', name: 'JACKPOT', random: 5, reactions: 3 },
+        { emoji: '🎉', name: 'GRANDE PRÊMIO', random: 3, reactions: 2 },
+        { emoji: '⭐', name: 'Prêmio Bom', random: 2, reactions: 1 },
+        { emoji: '🍀', name: 'Sorte Média', random: 1, reactions: 1 },
+        { emoji: '😐', name: 'Quase', random: 0, reactions: 0 },
+        { emoji: '💀', name: 'PERDEU', random: -2, reactions: -1 }
+    ];
+    
+    const weights = [5, 10, 20, 30, 25, 10]; // % de chance
+    const random = Math.random() * 100;
+    let cumulative = 0;
+    let selectedPrize = prizes[4]; // Default
+    
+    for (let i = 0; i < prizes.length; i++) {
+        cumulative += weights[i];
+        if (random <= cumulative) {
+            selectedPrize = prizes[i];
+            break;
+        }
+    }
+    
+    // Apply prize
+    const userRandom = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
+    const userReaction = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
+    
+    if (userRandom.date !== today) {
+        userRandom.date = today;
+        userRandom.count = 0;
+    }
+    if (userReaction.date !== today) {
+        userReaction.date = today;
+        userReaction.count = 0;
+    }
+    
+    userRandom.count = Math.max(0, Math.min(10, userRandom.count - selectedPrize.random));
+    userReaction.count = Math.max(0, Math.min(5, userReaction.count - selectedPrize.reactions));
+    
+    imageDb.randomUsage[userNumber] = userRandom;
+    imageDb.reactionUsage[userNumber] = userReaction;
+    await saveDb();
+    
+    let msg = `${periodEmoji} *${periodName.toUpperCase()}*\n\n`;
+    msg += `🎰 *ROLETA DA SORTE* 🎰\n\n`;
+    msg += `${selectedPrize.emoji} *${selectedPrize.name}* ${selectedPrize.emoji}\n\n`;
+    
+    if (selectedPrize.random > 0) msg += `🎲 +${selectedPrize.random} !random\n`;
+    else if (selectedPrize.random < 0) msg += `🎲 ${selectedPrize.random} !random\n`;
+    
+    if (selectedPrize.reactions > 0) msg += `❤️ +${selectedPrize.reactions} reações\n`;
+    else if (selectedPrize.reactions < 0) msg += `❤️ ${selectedPrize.reactions} reações\n`;
+    
+    if (selectedPrize.random === 0 && selectedPrize.reactions === 0) {
+        msg += `😐 Nada aconteceu...`;
+    }
+    
+    return msg;
+};
+
+// --- Duel Logic ---
+
+export const startDuel = async (remoteJid, challengerNumber, challengedNumber, challengerChoice) => {
+    await loadDb();
+    
+    // Check if challenger is banned
+    if (imageDb.bannedUsers[challengerNumber]) {
+        return '🚫 Você está banido e não pode duelar.';
+    }
+    
+    // Check if challenged is banned
+    if (imageDb.bannedUsers[challengedNumber]) {
+        return '🚫 Este usuário está banido.';
+    }
+    
+    // Can't duel yourself
+    if (challengerNumber === challengedNumber) {
+        return '❌ Você não pode duelar consigo mesmo!';
+    }
+    
+    // Check if there's already an active duel in this chat
+    if (imageDb.activeDuels[remoteJid]) {
+        return '⚔️ Já existe um duelo ativo neste grupo! Aguarde ele terminar.';
+    }
+    
+    // Validate choice
+    if (challengerChoice !== 'cara' && challengerChoice !== 'coroa') {
+        return '❌ Escolha "cara" ou "coroa".\nExemplo: !duel @pessoa cara';
+    }
+    
+    // Create duel
+    imageDb.activeDuels[remoteJid] = {
+        challenger: challengerNumber,
+        challenged: challengedNumber,
+        challengerChoice: challengerChoice
+    };
+    await saveDb();
+    
+    return null; // Success - duel created
+};
+
+export const acceptDuel = async (remoteJid, accepterNumber) => {
+    await loadDb();
+    
+    const duel = imageDb.activeDuels[remoteJid];
+    if (!duel) {
+        return '❌ Não há duelo ativo neste grupo.';
+    }
+    
+    if (duel.challenged !== accepterNumber) {
+        return '❌ Este duelo não é para você!';
+    }
+    
+    // Flip coin
+    const result = Math.random() < 0.5 ? 'cara' : 'coroa';
+    const challengerWon = result === duel.challengerChoice;
+    const winner = challengerWon ? duel.challenger : duel.challenged;
+    const loser = challengerWon ? duel.challenged : duel.challenger;
+    
+    // Transfer 1 reaction
+    const today = new Date().toISOString().split('T')[0];
+    const loserReaction = imageDb.reactionUsage[loser] || { date: today, count: 0 };
+    const winnerReaction = imageDb.reactionUsage[winner] || { date: today, count: 0 };
+    
+    if (loserReaction.date !== today) {
+        loserReaction.date = today;
+        loserReaction.count = 0;
+    }
+    if (winnerReaction.date !== today) {
+        winnerReaction.date = today;
+        winnerReaction.count = 0;
+    }
+    
+    // Add 1 to loser (reducing available), remove 1 from winner (increasing available)
+    loserReaction.count = Math.min(5, loserReaction.count + 1);
+    winnerReaction.count = Math.max(0, winnerReaction.count - 1);
+    
+    imageDb.reactionUsage[loser] = loserReaction;
+    imageDb.reactionUsage[winner] = winnerReaction;
+    
+    // Clear duel
+    delete imageDb.activeDuels[remoteJid];
+    await saveDb();
+    
+    const challengerChoiceEmoji = duel.challengerChoice === 'cara' ? '👤' : '👑';
+    const resultEmoji = result === 'cara' ? '👤' : '👑';
+    
+    return {
+        challengerWon,
+        result,
+        challengerChoice: duel.challengerChoice,
+        resultEmoji,
+        challengerChoiceEmoji
+    };
+};
+
+// --- Gift Logic ---
+
+export const giftToUser = async (giverNumber, receiverNumber) => {
+    await loadDb();
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if giver is banned
+    if (imageDb.bannedUsers[giverNumber]) {
+        return '🚫 Você está banido e não pode enviar presentes.';
+    }
+    
+    // Check if receiver is banned
+    if (imageDb.bannedUsers[receiverNumber]) {
+        return '🚫 Este usuário está banido.';
+    }
+    
+    // Can't gift yourself
+    if (giverNumber === receiverNumber) {
+        return '❌ Você não pode presentear a si mesmo!';
+    }
+    
+    // Check if already gifted today
+    const giftUsage = imageDb.giftUsage[giverNumber] || { date: today, used: false };
+    
+    if (giftUsage.date !== today) {
+        giftUsage.date = today;
+        giftUsage.used = false;
+    }
+    
+    if (giftUsage.used) {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        const hoursUntil = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+        const minutesUntil = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `🎁 Você já enviou um presente hoje!\n⏰ Disponível em: ${hoursUntil}h ${minutesUntil}min`;
+    }
+    
+    // Transfer 1 random use from giver to receiver
+    const giverRandom = imageDb.randomUsage[giverNumber] || { date: today, count: 0 };
+    const receiverRandom = imageDb.randomUsage[receiverNumber] || { date: today, count: 0 };
+    
+    if (giverRandom.date !== today) {
+        giverRandom.date = today;
+        giverRandom.count = 0;
+    }
+    if (receiverRandom.date !== today) {
+        receiverRandom.date = today;
+        receiverRandom.count = 0;
+    }
+    
+    // Check if giver has randoms to give
+    if (giverRandom.count >= 10) {
+        return '❌ Você não tem !random disponíveis para presentear!';
+    }
+    
+    giverRandom.count = Math.min(10, giverRandom.count + 1);
+    receiverRandom.count = Math.max(0, receiverRandom.count - 1);
+    
+    imageDb.randomUsage[giverNumber] = giverRandom;
+    imageDb.randomUsage[receiverNumber] = receiverRandom;
+    
+    giftUsage.used = true;
+    imageDb.giftUsage[giverNumber] = giftUsage;
+    
+    await saveDb();
+    
+    return null; // Success
+};
+
+// --- Ban Logic ---
+
+export const banUser = async (userNumber, reason, duration) => {
+    await loadDb();
+    
+    const until = duration === 'permanent' ? null : Date.now() + (duration * 60 * 60 * 1000);
+    
+    imageDb.bannedUsers[userNumber] = {
+        reason: reason || 'Sem motivo especificado',
+        until: until
+    };
+    
+    await saveDb();
+    
+    if (duration === 'permanent') {
+        return `🔨 Usuário banido permanentemente!\nMotivo: ${reason || 'Sem motivo especificado'}`;
+    } else {
+        return `🔨 Usuário banido por ${duration}h!\nMotivo: ${reason || 'Sem motivo especificado'}`;
+    }
+};
+
+export const unbanUser = async (userNumber) => {
+    await loadDb();
+    
+    if (!imageDb.bannedUsers[userNumber]) {
+        return '❌ Este usuário não está banido.';
+    }
+    
+    delete imageDb.bannedUsers[userNumber];
+    await saveDb();
+    
+    return '✅ Usuário desbanido com sucesso!';
+};
+
+export const checkBan = async (userNumber) => {
+    await loadDb();
+    
+    const ban = imageDb.bannedUsers[userNumber];
+    if (!ban) return null;
+    
+    // Check if temporary ban expired
+    if (ban.until && ban.until < Date.now()) {
+        delete imageDb.bannedUsers[userNumber];
+        await saveDb();
+        return null;
+    }
+    
+    return ban;
 };
 
 // --- Profile Logic ---
