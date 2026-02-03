@@ -6,6 +6,9 @@ const profileCommand = async (message, instance) => {
         const userNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
                           message.key.remoteJid?.replace('@s.whatsapp.net', '');
         
+        console.log('🔍 PROFILE - message.key:', JSON.stringify(message.key));
+        console.log('🔍 PROFILE - userNumber extracted:', userNumber);
+        
         const profile = await getUserProfile(userNumber);
         await sendReply(instance, message.key.remoteJid, profile, message.key.id);
     } catch (error) {
