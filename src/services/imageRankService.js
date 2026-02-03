@@ -180,18 +180,15 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
 // --- Reaction Logic ---
 
 export const handleReaction = async (reactionEvent, instance) => {
-    // reactionEvent structure based on Evolution API 'messages.reaction'
-    // usually: { key: { remoteJid, fromMe, id, participant }, reaction: { text, key: { ...targetMessageKey } } }
-    
     console.log('🔍 handleReaction called with event:', JSON.stringify(reactionEvent, null, 2));
     
-    // We need the ID of the message that WAS REACTED TO.
-    // data.message.key.id is usually the ID of the reaction message itself
-    // data.message.reaction.key.id is the ID of the target message
+    // Structure from Evolution API via messages.upsert with messageType: reactionMessage
+    // reactionEvent.key.participant = who reacted
+    // reactionEvent.message.reaction.key.id = target message ID
+    // reactionEvent.message.reaction.text = emoji (empty if removed)
     
     const targetMessageId = reactionEvent.message?.reaction?.key?.id;
-    const userNumber = reactionEvent.key?.participant?.replace('@s.whatsapp.net', '') || 
-                       reactionEvent.key?.remoteJid?.replace('@s.whatsapp.net', '');
+    const userNumber = reactionEvent.key?.participant?.replace('@lid', '').replace('@s.whatsapp.net', '');
     const remoteJid = reactionEvent.key?.remoteJid;
     
     console.log('📌 Target Message ID:', targetMessageId);

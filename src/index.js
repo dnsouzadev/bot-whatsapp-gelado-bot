@@ -45,9 +45,22 @@ app.post('/webhook', async (req, res) => {
         if (event !== 'messages.upsert') return;
 
         const message = data;
-        
-        // DEBUG: Log completo da mensagem para ver estrutura
-        console.log('📋 MENSAGEM COMPLETA:', JSON.stringify(message, null, 2));
+
+        // Check if it's a reaction
+        if (message.messageType === 'reactionMessage') {
+            console.log('🎯 REAÇÃO DETECTADA!');
+            const reactionData = {
+                key: message.key,
+                message: {
+                    reaction: {
+                        key: message.message.reactionMessage.key,
+                        text: message.message.reactionMessage.text
+                    }
+                }
+            };
+            await handleReaction(reactionData, instance);
+            return;
+        }
 
         // Ignora mensagens do próprio bot
         // if (message.key.fromMe) return;
