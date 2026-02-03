@@ -3,6 +3,8 @@ import { startDuel, acceptDuel } from '../services/imageRankService.js';
 
 const duelCommand = async (message, instance, args) => {
     try {
+        console.log('🔍 DUEL - Full message:', JSON.stringify(message, null, 2));
+        
         const challengerNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
                                 message.key.remoteJid?.replace('@s.whatsapp.net', '');
         
@@ -45,6 +47,9 @@ const duelCommand = async (message, instance, args) => {
         
         // Get mentioned user
         const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        console.log('📋 Mentions found:', mentions);
+        console.log('📋 Args:', args);
+        
         if (mentions.length === 0) {
             await sendReply(instance, remoteJid, '❌ Mencione alguém para duelar!\nExemplo: !duel @pessoa cara', message.key.id);
             return;
@@ -52,6 +57,10 @@ const duelCommand = async (message, instance, args) => {
         
         const challengedNumber = mentions[0].replace('@lid', '').replace('@s.whatsapp.net', '');
         const choice = args[1]?.toLowerCase();
+        
+        console.log('👤 Challenger:', challengerNumber);
+        console.log('🎯 Challenged:', challengedNumber);
+        console.log('🪙 Choice:', choice);
         
         const result = await startDuel(remoteJid, challengerNumber, challengedNumber, choice);
         
