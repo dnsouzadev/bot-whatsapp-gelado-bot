@@ -146,10 +146,13 @@ export const handleImageRegistrationStep = async (instance, remoteJid, message, 
 export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     await loadDb();
     console.log('DB Loaded. Images count:', imageDb.images.length);
+    console.log('🔍 RANDOM SERVICE - userNumber received:', userNumber);
     
     // Check usage limit (10 per day per person)
     const today = new Date().toISOString().split('T')[0];
     const userUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
+
+    console.log('📊 Current usage for', userNumber, ':', userUsage);
 
     if (userUsage.date !== today) {
         userUsage.date = today;
@@ -173,6 +176,7 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     console.log(`💾 Saving random usage for ${userNumber}: count=${userUsage.count}, date=${userUsage.date}`);
     await saveDb();
     console.log(`✅ Random usage saved successfully`);
+    console.log('📋 All randomUsage keys:', Object.keys(imageDb.randomUsage));
 
     if (imageDb.images.length === 0) {
         return 'Nenhuma imagem cadastrada.';
