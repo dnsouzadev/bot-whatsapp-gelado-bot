@@ -3,6 +3,8 @@ import { banUser, unbanUser } from '../services/imageRankService.js';
 
 const banCommand = async (message, instance, args) => {
     try {
+        console.log('🔍 BAN - Full message:', JSON.stringify(message, null, 2));
+        
         // Check if message is from bot itself (fromMe: true)
         const isFromBot = message.key.fromMe === true;
         
@@ -21,6 +23,8 @@ const banCommand = async (message, instance, args) => {
         // Check if unbanning
         if (args && args[0] === 'unban') {
             const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            console.log('📋 BAN UNBAN - Mentions found:', mentions);
+            
             if (mentions.length === 0) {
                 await sendReply(instance, remoteJid, '❌ Mencione alguém para desbanir!\nExemplo: !ban unban @pessoa', message.key.id);
                 return;
@@ -49,6 +53,9 @@ const banCommand = async (message, instance, args) => {
         }
         
         const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        console.log('📋 BAN - Mentions found:', mentions);
+        console.log('📋 BAN - Args:', args);
+        
         if (mentions.length === 0) {
             await sendReply(instance, remoteJid, '❌ Mencione alguém para banir!', message.key.id);
             return;
@@ -57,6 +64,8 @@ const banCommand = async (message, instance, args) => {
         const userNumber = mentions[0].replace('@lid', '').replace('@s.whatsapp.net', '');
         const durationArg = args[1]?.toLowerCase();
         const reason = args.slice(2).join(' ');
+        
+        console.log('🔨 Banning:', userNumber, 'Duration:', durationArg, 'Reason:', reason);
         
         let duration;
         if (durationArg === 'perm' || durationArg === 'permanente') {

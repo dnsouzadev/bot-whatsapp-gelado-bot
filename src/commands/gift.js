@@ -3,6 +3,8 @@ import { giftToUser } from '../services/imageRankService.js';
 
 const giftCommand = async (message, instance) => {
     try {
+        console.log('🔍 GIFT - Full message:', JSON.stringify(message, null, 2));
+        
         const giverNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
                            message.key.remoteJid?.replace('@s.whatsapp.net', '');
         
@@ -10,6 +12,8 @@ const giftCommand = async (message, instance) => {
         
         // Get mentioned user
         const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        console.log('📋 GIFT - Mentions found:', mentions);
+        
         if (mentions.length === 0) {
             await sendReply(
                 instance,
@@ -25,6 +29,7 @@ const giftCommand = async (message, instance) => {
         }
         
         const receiverNumber = mentions[0].replace('@lid', '').replace('@s.whatsapp.net', '');
+        console.log('🎁 Giver:', giverNumber, 'Receiver:', receiverNumber);
         
         const result = await giftToUser(giverNumber, receiverNumber);
         
