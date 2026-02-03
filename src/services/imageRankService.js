@@ -234,39 +234,44 @@ export const handleReaction = async (reactionEvent, instance) => {
             return;
         }
         
-        // Check reaction limit (5 per day per person)
-        const today = new Date().toISOString().split('T')[0];
-        const userReactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
+        const botNumber = process.env.BOT_NUMBER;
+        const isBotUser = userNumber === botNumber;
         
-        if (userReactionUsage.date !== today) {
-            userReactionUsage.date = today;
-            userReactionUsage.count = 0;
-        }
-        
-        if (userReactionUsage.count >= 5) {
-            const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(0, 0, 0, 0);
-            const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-            const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+        if (!isBotUser) {
+            // Check reaction limit (5 per day per person)
+            const today = new Date().toISOString().split('T')[0];
+            const userReactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
             
-            await sendReply(
-                instance, 
-                remoteJid, 
-                `🚫 Você já atingiu o limite de 5 reações por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`,
-                targetMessageId
-            );
-            return;
+            if (userReactionUsage.date !== today) {
+                userReactionUsage.date = today;
+                userReactionUsage.count = 0;
+            }
+            
+            if (userReactionUsage.count >= 5) {
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+                const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+                const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+                
+                await sendReply(
+                    instance, 
+                    remoteJid, 
+                    `🚫 Você já atingiu o limite de 5 reações por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`,
+                    targetMessageId
+                );
+                return;
+            }
+            
+            // Increment reaction usage
+            userReactionUsage.count += 1;
+            imageDb.reactionUsage[userNumber] = userReactionUsage;
         }
         
         // Add reaction
         image.reactions[userNumber] = true;
         image.score += 1;
-        
-        // Increment reaction usage
-        userReactionUsage.count += 1;
-        imageDb.reactionUsage[userNumber] = userReactionUsage;
         
         console.log(`User ${userNumber} reacted to image ${imageId}. New score: ${image.score}`);
     } else {
