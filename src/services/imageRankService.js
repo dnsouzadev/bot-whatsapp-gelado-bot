@@ -42,8 +42,15 @@ const loadDb = async () => {
             imageDb.reactionUsage = {};
             needsSave = true;
         }
-        if (!imageDb.diceUsed) {
-            imageDb.diceUsed = {};
+        if (!imageDb.diceUsage) {
+            imageDb.diceUsage = {}; // userNumber: { date: 'YYYY-MM-DD', morning: bool, afternoon: bool, night: bool }
+            needsSave = true;
+        }
+        
+        // Remove old 'diceUsed' field if it exists
+        if (imageDb.diceUsed) {
+            console.log('⚠️ Migrating old "diceUsed" field to new "diceUsage" system...');
+            delete imageDb.diceUsed;
             needsSave = true;
         }
         
@@ -75,7 +82,7 @@ const loadDb = async () => {
             messageMap: {},
             randomUsage: {},
             reactionUsage: {},
-            diceUsed: {}
+            diceUsage: {}
         };
         await saveDb();
     }
@@ -363,35 +370,93 @@ export const getLeaderboard = async () => {
 export const playDice = async (userNumber, chosenNumber) => {
     await loadDb();
     
-    // Check if user already used dice
-    if (imageDb.diceUsed[userNumber]) {
-        return '🎲 Você já usou seu dado! Só é permitido usar uma vez.';
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Determine current period
+    let period, periodName, periodEmoji;
+    if (currentHour < 12) {
+        period = 'morning';
+        periodName = 'Manhã';
+        periodEmoji = '🌅';
+    } else if (currentHour < 18) {
+        period = 'afternoon';
+        periodName = 'Tarde';
+        periodEmoji = '☀️';
+    } else {
+        period = 'night';
+        periodName = 'Noite';
+        periodEmoji = '🌙';
+    }
+    
+    // Get or create user dice usage
+    const userDice = imageDb.diceUsage[userNumber] || { 
+        date: today, 
+        morning: false, 
+        afternoon: false, 
+        night: false 
+    };
+    
+    // Reset if new day
+    if (userDice.date !== today) {
+        userDice.date = today;
+        userDice.morning = false;
+        userDice.afternoon = false;
+        userDice.night = false;
+    }
+    
+    // Check if already used in this period
+    if (userDice[period]) {
+        // Calculate when next period starts
+        let nextPeriodStart, nextPeriodName;
+        if (period === 'morning') {
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setHours(12, 0, 0, 0);
+            nextPeriodName = '☀️ Tarde (12:00)';
+        } else if (period === 'afternoon') {
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setHours(18, 0, 0, 0);
+            nextPeriodName = '🌙 Noite (18:00)';
+        } else {
+            // Night - next is tomorrow morning
+            nextPeriodStart = new Date(now);
+            nextPeriodStart.setDate(nextPeriodStart.getDate() + 1);
+            nextPeriodStart.setHours(0, 0, 0, 0);
+            nextPeriodName = '🌅 Manhã (00:00)';
+        }
+        
+        const hoursUntil = Math.floor((nextPeriodStart - now) / (1000 * 60 * 60));
+        const minutesUntil = Math.floor(((nextPeriodStart - now) % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `🎲 Você já usou seu dado da ${periodName} ${periodEmoji}\n\n⏰ Próximo período: ${nextPeriodName}\n🕐 Disponível em: ${hoursUntil}h ${minutesUntil}min`;
     }
     
     // Validate chosen number
     const choice = parseInt(chosenNumber);
     if (isNaN(choice) || choice < 1 || choice > 6) {
-        return '❌ Escolha um número entre 1 e 6.\nExemplo: !dice 3';
+        return `❌ Escolha um número entre 1 e 6.\nExemplo: !dice 3\n\n${periodEmoji} Período atual: ${periodName}`;
     }
     
     // Roll the dice
     const rolled = Math.floor(Math.random() * 6) + 1;
     
+    // Mark period as used
+    userDice[period] = true;
+    imageDb.diceUsage[userNumber] = userDice;
+    
     if (rolled === choice) {
         // Winner! Reset limits
-        const today = new Date().toISOString().split('T')[0];
         imageDb.randomUsage[userNumber] = { date: today, count: 0 };
         imageDb.reactionUsage[userNumber] = { date: today, count: 0 };
-        imageDb.diceUsed[userNumber] = true;
         await saveDb();
         
-        return `🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n🎉 PARABÉNS! Você acertou!\n✨ Seus limites foram resetados!\n🔒 Dado usado permanentemente.`;
+        return `${periodEmoji} *${periodName.toUpperCase()}*\n\n🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n🎉 *PARABÉNS!* Você acertou!\n✨ Seus limites foram resetados!`;
     } else {
-        // Lost - mark as used anyway
-        imageDb.diceUsed[userNumber] = true;
+        // Lost
         await saveDb();
         
-        return `🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n😢 Que pena! Você errou.\n🔒 Dado usado permanentemente.`;
+        return `${periodEmoji} *${periodName.toUpperCase()}*\n\n🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n😢 Que pena! Você errou.\n🔄 Tente no próximo período!`;
     }
 };
 
@@ -401,6 +466,8 @@ export const getUserProfile = async (userNumber) => {
     await loadDb();
     
     const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentHour = now.getHours();
     
     // Random usage
     const randomUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
@@ -417,12 +484,39 @@ export const getUserProfile = async (userNumber) => {
     const reactionCount = reactionUsage.date === today ? reactionUsage.count : 0;
     const reactionRemaining = `${5 - reactionCount}/5`;
     
-    // Dice status
-    const diceUsed = imageDb.diceUsed[userNumber] || false;
-    const diceStatus = diceUsed ? '❌ Já usado' : '✅ Disponível';
+    // Dice status (check periods)
+    const userDice = imageDb.diceUsage[userNumber] || { 
+        date: today, 
+        morning: false, 
+        afternoon: false, 
+        night: false 
+    };
+    
+    // Reset if new day
+    const diceToday = userDice.date === today;
+    const morning = diceToday && userDice.morning;
+    const afternoon = diceToday && userDice.afternoon;
+    const night = diceToday && userDice.night;
+    
+    let diceStatus = '';
+    diceStatus += morning ? '❌' : '✅';
+    diceStatus += ' Manhã | ';
+    diceStatus += afternoon ? '❌' : '✅';
+    diceStatus += ' Tarde | ';
+    diceStatus += night ? '❌' : '✅';
+    diceStatus += ' Noite';
+    
+    // Current period indicator
+    let currentPeriod = '';
+    if (currentHour < 12) {
+        currentPeriod = '🌅 Período atual: Manhã';
+    } else if (currentHour < 18) {
+        currentPeriod = '☀️ Período atual: Tarde';
+    } else {
+        currentPeriod = '🌙 Período atual: Noite';
+    }
     
     // Time until reset
-    const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -433,7 +527,9 @@ export const getUserProfile = async (userNumber) => {
     profile += `🎲 *Comandos Disponíveis:*\n`;
     profile += `├ !random: ${randomRemaining}\n`;
     profile += `└ Reações: ${reactionRemaining}\n\n`;
-    profile += `🎯 *Dado da Sorte:* ${diceStatus}\n`;
+    profile += `🎯 *Dados da Sorte:*\n`;
+    profile += `${diceStatus}\n`;
+    profile += `${currentPeriod}\n`;
     profile += `\n⏰ *Reset em:* ${hoursUntilReset}h ${minutesUntilReset}min`;
     
     return profile;
@@ -447,14 +543,14 @@ export const clearAllUsage = async () => {
     const totalUsers = new Set([
         ...Object.keys(imageDb.randomUsage),
         ...Object.keys(imageDb.reactionUsage),
-        ...Object.keys(imageDb.diceUsed)
+        ...Object.keys(imageDb.diceUsage)
     ]).size;
     
     imageDb.randomUsage = {};
     imageDb.reactionUsage = {};
-    imageDb.diceUsed = {};
+    imageDb.diceUsage = {};
     
     await saveDb();
     
-    return `🔄 *Reset Completo Executado!*\n\n✅ Resetados ${totalUsers} usuários:\n├ Limites de !random zerados\n├ Limites de reações zerados\n└ Dados liberados para todos`;
+    return `🔄 *Reset Completo Executado!*\n\n✅ Resetados ${totalUsers} usuários:\n├ Limites de !random zerados\n├ Limites de reações zerados\n└ Dados liberados (3 períodos)`;
 };
