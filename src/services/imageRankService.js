@@ -15,36 +15,71 @@ let imageDb = null;
 const activeRegistrations = {};
 
 const loadDb = async () => {
-    // Force reload on every call in development (can be optimized later)
+    // Force reload on every call to ensure data persistence
     imageDb = null;
     
-    if (imageDb) return imageDb;
     try {
         const data = await fs.readFile(DB_PATH, 'utf8');
         imageDb = JSON.parse(data);
+        
+        // Migration and backward compatibility
+        let needsSave = false;
+        
+        // Add missing fields
+        if (!imageDb.images) {
+            imageDb.images = [];
+            needsSave = true;
+        }
+        if (!imageDb.messageMap) {
+            imageDb.messageMap = {};
+            needsSave = true;
+        }
+        if (!imageDb.randomUsage) {
+            imageDb.randomUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.reactionUsage) {
+            imageDb.reactionUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.diceUsed) {
+            imageDb.diceUsed = {};
+            needsSave = true;
+        }
+        
+        // Remove old 'usage' field if it exists
+        if (imageDb.usage) {
+            console.log('⚠️ Migrating old "usage" field...');
+            delete imageDb.usage;
+            needsSave = true;
+        }
+        
+        // Add reactions field to existing images
+        imageDb.images.forEach(img => {
+            if (!img.reactions) {
+                img.reactions = {};
+                needsSave = true;
+            }
+        });
+        
+        if (needsSave) {
+            console.log('💾 Migrating database structure...');
+            await saveDb();
+            console.log('✅ Migration complete!');
+        }
+        
     } catch (error) {
+        console.log('📝 Creating new database...');
         imageDb = {
-            images: [], // { id, base64, score, sender, reactions: {} }
-            messageMap: {}, // messageId: imageId (track which message corresponds to which image)
-            randomUsage: {}, // userNumber: { date: 'YYYY-MM-DD', count: 0 }
-            reactionUsage: {}, // userNumber: { date: 'YYYY-MM-DD', count: 0 }
-            diceUsed: {} // userNumber: true (can only use dice once ever)
+            images: [],
+            messageMap: {},
+            randomUsage: {},
+            reactionUsage: {},
+            diceUsed: {}
         };
         await saveDb();
     }
-    // Backward compatibility for existing DB
-    if (!imageDb.randomUsage) imageDb.randomUsage = {};
-    if (!imageDb.reactionUsage) imageDb.reactionUsage = {};
-    if (!imageDb.diceUsed) imageDb.diceUsed = {};
-    if (imageDb.usage) {
-        // Migrate old usage to randomUsage
-        delete imageDb.usage;
-        await saveDb();
-    }
-    // Add reactions field to existing images
-    imageDb.images.forEach(img => {
-        if (!img.reactions) img.reactions = {};
-    });
+    
     return imageDb;
 };
 
