@@ -147,37 +147,30 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     await loadDb();
     console.log('DB Loaded. Images count:', imageDb.images.length);
     
-    const botNumber = process.env.BOT_NUMBER;
-    
-    // Check if user is the bot (no limit for bot)
-    const isBotUser = userNumber === botNumber;
-    
-    if (!isBotUser) {
-        // Check usage limit (10 per day per person)
-        const today = new Date().toISOString().split('T')[0];
-        const userUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
+    // Check usage limit (10 per day per person)
+    const today = new Date().toISOString().split('T')[0];
+    const userUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
 
-        if (userUsage.date !== today) {
-            userUsage.date = today;
-            userUsage.count = 0;
-        }
-
-        if (userUsage.count >= 10) {
-            const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(0, 0, 0, 0);
-            const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-            const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
-            
-            return `🚫 Você já atingiu o limite de 10 imagens aleatórias por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`;
-        }
-
-        // Increment usage
-        userUsage.count += 1;
-        imageDb.randomUsage[userNumber] = userUsage;
-        await saveDb();
+    if (userUsage.date !== today) {
+        userUsage.date = today;
+        userUsage.count = 0;
     }
+
+    if (userUsage.count >= 10) {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+        const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `🚫 Você já atingiu o limite de 10 imagens aleatórias por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    // Increment usage
+    userUsage.count += 1;
+    imageDb.randomUsage[userNumber] = userUsage;
+    await saveDb();
 
     if (imageDb.images.length === 0) {
         return 'Nenhuma imagem cadastrada.';
@@ -272,29 +265,24 @@ export const handleReaction = async (reactionEvent, instance) => {
             return;
         }
         
-        const botNumber = process.env.BOT_NUMBER;
-        const isBotUser = userNumber === botNumber;
+        // Check reaction limit (5 per day per person)
+        const today = new Date().toISOString().split('T')[0];
+        const userReactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
         
-        if (!isBotUser) {
-            // Check reaction limit (5 per day per person)
-            const today = new Date().toISOString().split('T')[0];
-            const userReactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
-            
-            if (userReactionUsage.date !== today) {
-                userReactionUsage.date = today;
-                userReactionUsage.count = 0;
-            }
-            
-            if (userReactionUsage.count >= 5) {
-                // Limite atingido, apenas ignora silenciosamente
-                console.log(`User ${userNumber} reached reaction limit (5/day)`);
-                return;
-            }
-            
-            // Increment reaction usage
-            userReactionUsage.count += 1;
-            imageDb.reactionUsage[userNumber] = userReactionUsage;
+        if (userReactionUsage.date !== today) {
+            userReactionUsage.date = today;
+            userReactionUsage.count = 0;
         }
+        
+        if (userReactionUsage.count >= 5) {
+            // Limite atingido, apenas ignora silenciosamente
+            console.log(`User ${userNumber} reached reaction limit (5/day)`);
+            return;
+        }
+        
+        // Increment reaction usage
+        userReactionUsage.count += 1;
+        imageDb.reactionUsage[userNumber] = userReactionUsage;
         
         // Add reaction
         image.reactions[userNumber] = true;
@@ -381,18 +369,16 @@ export const getUserProfile = async (userNumber) => {
     await loadDb();
     
     const today = new Date().toISOString().split('T')[0];
-    const botNumber = process.env.BOT_NUMBER;
-    const isBot = userNumber === botNumber;
     
     // Random usage
     const randomUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
     const randomCount = randomUsage.date === today ? randomUsage.count : 0;
-    const randomRemaining = isBot ? '∞ (Ilimitado)' : `${10 - randomCount}/10`;
+    const randomRemaining = `${10 - randomCount}/10`;
     
     // Reaction usage
     const reactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
     const reactionCount = reactionUsage.date === today ? reactionUsage.count : 0;
-    const reactionRemaining = isBot ? '∞ (Ilimitado)' : `${5 - reactionCount}/5`;
+    const reactionRemaining = `${5 - reactionCount}/5`;
     
     // Dice status
     const diceUsed = imageDb.diceUsed[userNumber] || false;
@@ -411,10 +397,27 @@ export const getUserProfile = async (userNumber) => {
     profile += `├ !random: ${randomRemaining}\n`;
     profile += `└ Reações: ${reactionRemaining}\n\n`;
     profile += `🎯 *Dado da Sorte:* ${diceStatus}\n`;
-    
-    if (!isBot) {
-        profile += `\n⏰ *Reset em:* ${hoursUntilReset}h ${minutesUntilReset}min`;
-    }
+    profile += `\n⏰ *Reset em:* ${hoursUntilReset}h ${minutesUntilReset}min`;
     
     return profile;
+};
+
+// --- Clear All (Admin only) ---
+
+export const clearAllUsage = async () => {
+    await loadDb();
+    
+    const totalUsers = new Set([
+        ...Object.keys(imageDb.randomUsage),
+        ...Object.keys(imageDb.reactionUsage),
+        ...Object.keys(imageDb.diceUsed)
+    ]).size;
+    
+    imageDb.randomUsage = {};
+    imageDb.reactionUsage = {};
+    imageDb.diceUsed = {};
+    
+    await saveDb();
+    
+    return `🔄 *Reset Completo Executado!*\n\n✅ Resetados ${totalUsers} usuários:\n├ Limites de !random zerados\n├ Limites de reações zerados\n└ Dados liberados para todos`;
 };

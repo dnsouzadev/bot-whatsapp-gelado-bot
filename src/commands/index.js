@@ -23,6 +23,7 @@ import randomImageCommand from './randomImage.js';
 import imageRankCommand from './imageRank.js';
 import diceResetCommand from './diceReset.js';
 import profileCommand from './profile.js';
+import clearCommand from './clear.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 
 const commands = {
@@ -52,7 +53,8 @@ const commands = {
     'imgrank': imageRankCommand,
     'dice': diceResetCommand,
     'profile': profileCommand,
-    'me': profileCommand
+    'me': profileCommand,
+    'clear': clearCommand
 };
 
 const handleCommand = async (message, command, instance) => {
