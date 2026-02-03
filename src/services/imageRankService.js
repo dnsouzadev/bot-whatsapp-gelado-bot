@@ -24,13 +24,15 @@ const loadDb = async () => {
             images: [], // { id, base64, score, sender, reactions: {} }
             messageMap: {}, // messageId: imageId (track which message corresponds to which image)
             randomUsage: {}, // userNumber: { date: 'YYYY-MM-DD', count: 0 }
-            reactionUsage: {} // userNumber: { date: 'YYYY-MM-DD', count: 0 }
+            reactionUsage: {}, // userNumber: { date: 'YYYY-MM-DD', count: 0 }
+            diceUsed: {} // userNumber: true (can only use dice once ever)
         };
         await saveDb();
     }
     // Backward compatibility for existing DB
     if (!imageDb.randomUsage) imageDb.randomUsage = {};
     if (!imageDb.reactionUsage) imageDb.reactionUsage = {};
+    if (!imageDb.diceUsed) imageDb.diceUsed = {};
     if (!imageDb.usage) {
         // Migrate old usage to randomUsage
         imageDb.randomUsage = {};
@@ -248,19 +250,8 @@ export const handleReaction = async (reactionEvent, instance) => {
             }
             
             if (userReactionUsage.count >= 5) {
-                const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
-                const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-                const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
-                
-                await sendReply(
-                    instance, 
-                    remoteJid, 
-                    `🚫 Você já atingiu o limite de 5 reações por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`,
-                    targetMessageId
-                );
+                // Limite atingido, apenas ignora silenciosamente
+                console.log(`User ${userNumber} reached reaction limit (5/day)`);
                 return;
             }
             
@@ -309,4 +300,41 @@ export const getLeaderboard = async () => {
     });
     
     return msg;
+};
+
+// --- Dice Logic ---
+
+export const playDice = async (userNumber, chosenNumber) => {
+    await loadDb();
+    
+    // Check if user already used dice
+    if (imageDb.diceUsed[userNumber]) {
+        return '🎲 Você já usou seu dado! Só é permitido usar uma vez.';
+    }
+    
+    // Validate chosen number
+    const choice = parseInt(chosenNumber);
+    if (isNaN(choice) || choice < 1 || choice > 6) {
+        return '❌ Escolha um número entre 1 e 6.\nExemplo: !dice 3';
+    }
+    
+    // Roll the dice
+    const rolled = Math.floor(Math.random() * 6) + 1;
+    
+    if (rolled === choice) {
+        // Winner! Reset limits
+        const today = new Date().toISOString().split('T')[0];
+        imageDb.randomUsage[userNumber] = { date: today, count: 0 };
+        imageDb.reactionUsage[userNumber] = { date: today, count: 0 };
+        imageDb.diceUsed[userNumber] = true;
+        await saveDb();
+        
+        return `🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n🎉 PARABÉNS! Você acertou!\n✨ Seus limites foram resetados!\n🔒 Dado usado permanentemente.`;
+    } else {
+        // Lost - mark as used anyway
+        imageDb.diceUsed[userNumber] = true;
+        await saveDb();
+        
+        return `🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n😢 Que pena! Você errou.\n🔒 Dado usado permanentemente.`;
+    }
 };

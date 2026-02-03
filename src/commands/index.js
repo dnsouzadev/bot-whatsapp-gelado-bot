@@ -21,6 +21,7 @@ import cronCommand from './cron.js';
 import registerImageCommand from './registerImage.js';
 import randomImageCommand from './randomImage.js';
 import imageRankCommand from './imageRank.js';
+import diceResetCommand from './diceReset.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 
 const commands = {
@@ -47,17 +48,20 @@ const commands = {
     'cron': cronCommand,
     'register': registerImageCommand,
     'random': randomImageCommand,
-    'imgrank': imageRankCommand
+    'imgrank': imageRankCommand,
+    'dice': diceResetCommand
 };
 
 const handleCommand = async (message, command, instance) => {
-    const commandName = command.split(' ')[0];
+    const parts = command.split(' ');
+    const commandName = parts[0];
+    const args = parts.slice(1);
     const commandHandler = commands[commandName];
 
     // Se tiver handler nativo, executa
     if (commandHandler) {
         try {
-            await commandHandler(message, instance);
+            await commandHandler(message, instance, args);
         } catch (error) {
             console.error('Erro ao processar comando:', error);
             const { sendReply } = await import('../services/evolutionApi.js');
