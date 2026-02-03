@@ -3,13 +3,13 @@ import { clearAllUsage } from '../services/imageRankService.js';
 
 const clearCommand = async (message, instance) => {
     try {
-        const userNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
-                          message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        // Check if message is from bot itself (fromMe: true)
+        const isFromBot = message.key.fromMe === true;
         
-        const botNumber = process.env.BOT_NUMBER;
+        console.log('🔍 CLEAR - message.key:', JSON.stringify(message.key));
+        console.log('🔍 CLEAR - isFromBot:', isFromBot);
         
-        // Check if user is the bot
-        if (userNumber !== botNumber) {
+        if (!isFromBot) {
             await sendReply(
                 instance, 
                 message.key.remoteJid, 
