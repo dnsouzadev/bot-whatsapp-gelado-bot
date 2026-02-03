@@ -162,9 +162,13 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
         
         // Map the sent message ID to the image ID
         // Note: Response structure depends on Evolution API version. Usually response.key.id
+        console.log('📤 sendImage response:', JSON.stringify(response, null, 2));
         if (response && response.key && response.key.id) {
+            console.log('✅ Mapping message ID', response.key.id, 'to image ID', image.id);
             imageDb.messageMap[response.key.id] = image.id;
             await saveDb();
+        } else {
+            console.log('⚠️ Response does not have key.id, cannot map message');
         }
         
     } catch (error) {
@@ -179,6 +183,8 @@ export const handleReaction = async (reactionEvent, instance) => {
     // reactionEvent structure based on Evolution API 'messages.reaction'
     // usually: { key: { remoteJid, fromMe, id, participant }, reaction: { text, key: { ...targetMessageKey } } }
     
+    console.log('🔍 handleReaction called with event:', JSON.stringify(reactionEvent, null, 2));
+    
     // We need the ID of the message that WAS REACTED TO.
     // data.message.key.id is usually the ID of the reaction message itself
     // data.message.reaction.key.id is the ID of the target message
@@ -188,15 +194,33 @@ export const handleReaction = async (reactionEvent, instance) => {
                        reactionEvent.key?.remoteJid?.replace('@s.whatsapp.net', '');
     const remoteJid = reactionEvent.key?.remoteJid;
     
-    if (!targetMessageId || !userNumber) return;
+    console.log('📌 Target Message ID:', targetMessageId);
+    console.log('👤 User Number:', userNumber);
+    console.log('💬 Remote JID:', remoteJid);
+    
+    if (!targetMessageId || !userNumber) {
+        console.log('❌ Missing targetMessageId or userNumber, returning');
+        return;
+    }
 
     await loadDb();
 
+    console.log('📋 Current messageMap:', imageDb.messageMap);
     const imageId = imageDb.messageMap[targetMessageId];
-    if (!imageId) return; // Not a tracked image
+    console.log('🖼️ Found imageId:', imageId);
+    
+    if (!imageId) {
+        console.log('❌ No image found for targetMessageId:', targetMessageId);
+        return; // Not a tracked image
+    }
 
     const image = imageDb.images.find(img => img.id === imageId);
-    if (!image) return;
+    if (!image) {
+        console.log('❌ Image not found in database for imageId:', imageId);
+        return;
+    }
+    
+    console.log('✅ Found image:', image.name, 'Current score:', image.score);
 
     // Evolution API sends reaction updates (add/remove).
     // If text is empty string, it's a remove.
