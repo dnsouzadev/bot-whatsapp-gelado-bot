@@ -4,7 +4,12 @@ import { sendRandomImage } from '../services/imageRankService.js';
 const randomImageCommand = async (message, instance) => {
     try {
         console.log('Executing randomImageCommand...');
-        const result = await sendRandomImage(instance, message.key.remoteJid);
+        
+        // Get user number (participant in groups, remoteJid in DMs)
+        const userNumber = message.key.participant?.replace('@s.whatsapp.net', '') || 
+                          message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        
+        const result = await sendRandomImage(instance, message.key.remoteJid, userNumber);
         console.log('Result from sendRandomImage:', result);
         
         if (typeof result === 'string') {

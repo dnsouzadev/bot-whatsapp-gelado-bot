@@ -31,7 +31,7 @@ app.post('/webhook', async (req, res) => {
         // Handle Reactions
         if (event === 'messages.reaction') {
             console.log('Reação recebida:', data);
-            await handleReaction(data);
+            await handleReaction(data, instance);
             return;
         }
 
