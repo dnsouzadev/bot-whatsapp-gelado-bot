@@ -15,6 +15,9 @@ let imageDb = null;
 const activeRegistrations = {};
 
 const loadDb = async () => {
+    // Force reload on every call in development (can be optimized later)
+    imageDb = null;
+    
     if (imageDb) return imageDb;
     try {
         const data = await fs.readFile(DB_PATH, 'utf8');
@@ -33,12 +36,10 @@ const loadDb = async () => {
     if (!imageDb.randomUsage) imageDb.randomUsage = {};
     if (!imageDb.reactionUsage) imageDb.reactionUsage = {};
     if (!imageDb.diceUsed) imageDb.diceUsed = {};
-    if (!imageDb.usage) {
+    if (imageDb.usage) {
         // Migrate old usage to randomUsage
-        imageDb.randomUsage = {};
-        imageDb.reactionUsage = {};
-    } else {
         delete imageDb.usage;
+        await saveDb();
     }
     // Add reactions field to existing images
     imageDb.images.forEach(img => {
