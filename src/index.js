@@ -45,6 +45,9 @@ app.post('/webhook', async (req, res) => {
         if (event !== 'messages.upsert') return;
 
         const message = data;
+        
+        // DEBUG: Log completo da mensagem para ver estrutura
+        console.log('📋 MENSAGEM COMPLETA:', JSON.stringify(message, null, 2));
 
         // Ignora mensagens do próprio bot
         // if (message.key.fromMe) return;
