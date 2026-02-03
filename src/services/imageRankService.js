@@ -170,7 +170,9 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     // Increment usage
     userUsage.count += 1;
     imageDb.randomUsage[userNumber] = userUsage;
+    console.log(`💾 Saving random usage for ${userNumber}: count=${userUsage.count}, date=${userUsage.date}`);
     await saveDb();
+    console.log(`✅ Random usage saved successfully`);
 
     if (imageDb.images.length === 0) {
         return 'Nenhuma imagem cadastrada.';
@@ -374,6 +376,11 @@ export const getUserProfile = async (userNumber) => {
     const randomUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
     const randomCount = randomUsage.date === today ? randomUsage.count : 0;
     const randomRemaining = `${10 - randomCount}/10`;
+    
+    console.log(`📊 Profile for ${userNumber}:`);
+    console.log(`  - Random usage:`, randomUsage);
+    console.log(`  - Random count today:`, randomCount);
+    console.log(`  - Today:`, today);
     
     // Reaction usage
     const reactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
