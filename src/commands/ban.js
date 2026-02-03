@@ -22,7 +22,8 @@ const banCommand = async (message, instance, args) => {
         
         // Check if unbanning
         if (args && args[0] === 'unban') {
-            const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            const mentions = message.contextInfo?.mentionedJid || 
+                            message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
             console.log('📋 BAN UNBAN - Mentions found:', mentions);
             
             if (mentions.length === 0) {
@@ -52,7 +53,8 @@ const banCommand = async (message, instance, args) => {
             return;
         }
         
-        const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const mentions = message.contextInfo?.mentionedJid || 
+                        message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         console.log('📋 BAN - Mentions found:', mentions);
         console.log('📋 BAN - Args:', args);
         

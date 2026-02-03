@@ -46,7 +46,8 @@ const duelCommand = async (message, instance, args) => {
         }
         
         // Get mentioned user
-        const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const mentions = message.contextInfo?.mentionedJid || 
+                        message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         console.log('📋 Mentions found:', mentions);
         console.log('📋 Args:', args);
         

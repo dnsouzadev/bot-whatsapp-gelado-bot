@@ -11,7 +11,8 @@ const giftCommand = async (message, instance) => {
         const remoteJid = message.key.remoteJid;
         
         // Get mentioned user
-        const mentions = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const mentions = message.contextInfo?.mentionedJid || 
+                        message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         console.log('📋 GIFT - Mentions found:', mentions);
         
         if (mentions.length === 0) {
