@@ -338,3 +338,47 @@ export const playDice = async (userNumber, chosenNumber) => {
         return `🎲 Você escolheu: ${choice}\n🎯 Resultado: ${rolled}\n\n😢 Que pena! Você errou.\n🔒 Dado usado permanentemente.`;
     }
 };
+
+// --- Profile Logic ---
+
+export const getUserProfile = async (userNumber) => {
+    await loadDb();
+    
+    const today = new Date().toISOString().split('T')[0];
+    const botNumber = process.env.BOT_NUMBER;
+    const isBot = userNumber === botNumber;
+    
+    // Random usage
+    const randomUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
+    const randomCount = randomUsage.date === today ? randomUsage.count : 0;
+    const randomRemaining = isBot ? '∞ (Ilimitado)' : `${10 - randomCount}/10`;
+    
+    // Reaction usage
+    const reactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
+    const reactionCount = reactionUsage.date === today ? reactionUsage.count : 0;
+    const reactionRemaining = isBot ? '∞ (Ilimitado)' : `${5 - reactionCount}/5`;
+    
+    // Dice status
+    const diceUsed = imageDb.diceUsed[userNumber] || false;
+    const diceStatus = diceUsed ? '❌ Já usado' : '✅ Disponível';
+    
+    // Time until reset
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+    const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let profile = `👤 *SEU PERFIL*\n\n`;
+    profile += `🎲 *Comandos Disponíveis:*\n`;
+    profile += `├ !random: ${randomRemaining}\n`;
+    profile += `└ Reações: ${reactionRemaining}\n\n`;
+    profile += `🎯 *Dado da Sorte:* ${diceStatus}\n`;
+    
+    if (!isBot) {
+        profile += `\n⏰ *Reset em:* ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+    
+    return profile;
+};
