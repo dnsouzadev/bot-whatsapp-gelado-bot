@@ -23,7 +23,13 @@ app.post('/webhook', async (req, res) => {
     try {
         const { event, instance, data } = req.body;
 
-        console.log('Webhook recebido:', event);
+        console.log('📨 Webhook recebido:', event);
+        
+        // Log completo para eventos de reação (debug)
+        if (event && event.includes('reaction')) {
+            console.log('🎯 EVENTO DE REAÇÃO DETECTADO!');
+            console.log('Full webhook body:', JSON.stringify(req.body, null, 2));
+        }
 
         // Responde rapidamente ao Evolution API
         res.status(200).json({ received: true });
