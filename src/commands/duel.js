@@ -1,6 +1,18 @@
 import { sendReply } from '../services/evolutionApi.js';
 import { startDuel, acceptDuel } from '../services/imageRankService.js';
 
+const parseStakeArgs = (args, index) => {
+    let stakeType = args[index];
+    let stakeAmount = args[index + 1];
+
+    if (stakeType && !isNaN(parseInt(stakeType, 10))) {
+        stakeAmount = stakeType;
+        stakeType = null;
+    }
+
+    return { stakeType, stakeAmount };
+};
+
 const duelCommand = async (message, instance, args) => {
     try {
         console.log('🔍 DUEL - Full message:', JSON.stringify(message, null, 2));
@@ -20,11 +32,18 @@ const duelCommand = async (message, instance, args) => {
             }
             
             // Duel completed
-            const msg = `⚔️ *RESULTADO DO DUELO* ⚔️\n\n` +
-                       `🪙 Moeda escolhida: ${result.challengerChoiceEmoji} ${result.challengerChoice}\n` +
-                       `🎯 Resultado: ${result.resultEmoji} ${result.result}\n\n` +
-                       `${result.challengerWon ? '🏆 Desafiante VENCEU!' : '🏆 Desafiado VENCEU!'}\n\n` +
-                       `💰 1 reação foi transferida!`;
+            const { duel, result: duelResult } = result;
+            const stakeLabel = duel.stakeType === 'random' ? '!random' : 'reação(ões)';
+            let msg = `⚔️ *RESULTADO DO DUELO* ⚔️\n\n`;
+            msg += `🪙 Moeda do desafiante: ${duel.challengerChoice}\n`;
+            msg += `${duelResult.summary}\n\n`;
+
+            if (duelResult.winner) {
+                msg += `${duelResult.winner === duel.challenger ? '🏆 Desafiante VENCEU!' : '🏆 Desafiado VENCEU!'}\n\n`;
+                msg += `💰 ${duel.stakeAmount} ${stakeLabel} transferido(s)!`;
+            } else {
+                msg += `🤝 Empate! Nenhuma aposta foi transferida.`;
+            }
             
             await sendReply(instance, remoteJid, msg, message.key.id);
             return;
@@ -36,9 +55,9 @@ const duelCommand = async (message, instance, args) => {
                 instance,
                 remoteJid,
                 '⚔️ *DUELO CARA OU COROA* ⚔️\n\n' +
-                'Desafie alguém e roube 1 reação!\n\n' +
-                'Uso: !duel @pessoa [cara/coroa]\n' +
-                'Exemplo: !duel @João cara\n\n' +
+                'Desafie alguém e aposte reações ou !random!\n\n' +
+                'Uso: !duel @pessoa [cara/coroa] [reacao/random] [quantidade]\n' +
+                'Exemplo: !duel @João cara reacao 2\n\n' +
                 'Para aceitar: !duel aceitar',
                 message.key.id
             );
@@ -58,23 +77,26 @@ const duelCommand = async (message, instance, args) => {
         
         const challengedNumber = mentions[0].replace('@lid', '').replace('@s.whatsapp.net', '');
         const choice = args[1]?.toLowerCase();
+        const { stakeType, stakeAmount } = parseStakeArgs(args, 2);
         
         console.log('👤 Challenger:', challengerNumber);
         console.log('🎯 Challenged:', challengedNumber);
         console.log('🪙 Choice:', choice);
         
-        const result = await startDuel(remoteJid, challengerNumber, challengedNumber, choice);
+        const result = await startDuel(remoteJid, challengerNumber, challengedNumber, choice, stakeType, stakeAmount, 'coin');
         
         if (result) {
             await sendReply(instance, remoteJid, result, message.key.id);
         } else {
             const choiceEmoji = choice === 'cara' ? '👤' : '👑';
+            const stakeLabel = stakeType === 'random' ? '!random' : 'reação(ões)';
+            const amountLabel = parseInt(stakeAmount, 10) || 1;
             await sendReply(
                 instance,
                 remoteJid,
                 `⚔️ *DUELO INICIADO!* ⚔️\n\n` +
                 `🎯 Escolha: ${choiceEmoji} ${choice}\n` +
-                `💰 Prêmio: 1 reação\n\n` +
+                `💰 Prêmio: ${amountLabel} ${stakeLabel}\n\n` +
                 `@${challengedNumber}, digite:\n!duel aceitar`,
                 message.key.id
             );
