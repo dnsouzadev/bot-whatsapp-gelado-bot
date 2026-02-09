@@ -34,6 +34,10 @@ const loadDb = async () => {
             imageDb.messageMap = {};
             needsSave = true;
         }
+        if (!imageDb.messageReactions) {
+            imageDb.messageReactions = {};
+            needsSave = true;
+        }
         if (!imageDb.randomUsage) {
             imageDb.randomUsage = {};
             needsSave = true;
@@ -52,6 +56,26 @@ const loadDb = async () => {
         }
         if (!imageDb.giftUsage) {
             imageDb.giftUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.luckyBoxUsage) {
+            imageDb.luckyBoxUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.scratchUsage) {
+            imageDb.scratchUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.treasureUsage) {
+            imageDb.treasureUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.slotUsage) {
+            imageDb.slotUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.meteorUsage) {
+            imageDb.meteorUsage = {};
             needsSave = true;
         }
         if (!imageDb.bannedUsers) {
@@ -96,11 +120,17 @@ const loadDb = async () => {
         imageDb = {
             images: [],
             messageMap: {},
+            messageReactions: {},
             randomUsage: {},
             reactionUsage: {},
             diceUsage: {},
             rouletteUsage: {}, // Same as dice - 3 per day
             giftUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            luckyBoxUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            scratchUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            treasureUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            slotUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
+            meteorUsage: {}, // userNumber: { date: 'YYYY-MM-DD', used: bool }
             bannedUsers: {}, // userNumber: { reason: string, until: timestamp or null for permanent }
             activeDuels: {} // remoteJid: { challenger: userNumber, challenged: userNumber, challengerChoice: string }
         };
@@ -116,6 +146,49 @@ const saveDb = async () => {
     } catch (error) {
         console.error('Error saving image rank db:', error);
     }
+};
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const getToday = () => new Date().toISOString().split('T')[0];
+
+const getTimeUntilReset = () => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+    const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+    return { hoursUntilReset, minutesUntilReset };
+};
+
+const getDailyUsage = (usageMap, userNumber, today) => {
+    const usage = usageMap[userNumber] || { date: today, used: false };
+    if (usage.date !== today) {
+        usage.date = today;
+        usage.used = false;
+    }
+    return usage;
+};
+
+const applyUsagePrize = (userNumber, prize, today) => {
+    const userRandom = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
+    const userReaction = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
+
+    if (userRandom.date !== today) {
+        userRandom.date = today;
+        userRandom.count = 0;
+    }
+    if (userReaction.date !== today) {
+        userReaction.date = today;
+        userReaction.count = 0;
+    }
+
+    userRandom.count = clamp(userRandom.count - prize.random, 0, 10);
+    userReaction.count = clamp(userReaction.count - prize.reactions, 0, 5);
+
+    imageDb.randomUsage[userNumber] = userRandom;
+    imageDb.reactionUsage[userNumber] = userReaction;
 };
 
 // --- Registration Logic ---
@@ -286,20 +359,19 @@ export const handleReaction = async (reactionEvent, instance) => {
     // Evolution API sends reaction updates (add/remove).
     // If text is empty string, it's a remove.
     const reactionText = reactionEvent.message?.reaction?.text;
-    
-    if (!image.reactions) image.reactions = {};
+    const messageReactions = imageDb.messageReactions[targetMessageId] || {};
     
     if (reactionText) {
         // User is adding a reaction
         
-        // Check if user already reacted to this image
-        if (image.reactions[userNumber]) {
-            console.log(`User ${userNumber} already reacted to image ${imageId}`);
+        // Check if user already reacted to this specific message
+        if (messageReactions[userNumber]) {
+            console.log(`User ${userNumber} already reacted to message ${targetMessageId}`);
             return;
         }
         
         // Check reaction limit (5 per day per person)
-        const today = new Date().toISOString().split('T')[0];
+        const today = getToday();
         const userReactionUsage = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
         
         if (userReactionUsage.date !== today) {
@@ -318,18 +390,24 @@ export const handleReaction = async (reactionEvent, instance) => {
         imageDb.reactionUsage[userNumber] = userReactionUsage;
         
         // Add reaction
-        image.reactions[userNumber] = true;
+        messageReactions[userNumber] = true;
+        imageDb.messageReactions[targetMessageId] = messageReactions;
         image.score += 1;
         
         console.log(`User ${userNumber} reacted to image ${imageId}. New score: ${image.score}`);
     } else {
         // Reaction removed
-        if (image.reactions[userNumber]) {
-            delete image.reactions[userNumber];
+        if (messageReactions[userNumber]) {
+            delete messageReactions[userNumber];
+            if (Object.keys(messageReactions).length === 0) {
+                delete imageDb.messageReactions[targetMessageId];
+            } else {
+                imageDb.messageReactions[targetMessageId] = messageReactions;
+            }
             image.score = Math.max(0, image.score - 1);
             
             // Decrement reaction usage
-            const today = new Date().toISOString().split('T')[0];
+            const today = getToday();
             const userReactionUsage = imageDb.reactionUsage[userNumber];
             if (userReactionUsage && userReactionUsage.date === today) {
                 userReactionUsage.count = Math.max(0, userReactionUsage.count - 1);
@@ -485,7 +563,7 @@ export const playDice = async (userNumber, chosenNumber) => {
 export const playRoulette = async (userNumber) => {
     await loadDb();
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
     const now = new Date();
     const currentHour = now.getHours();
     
@@ -606,6 +684,217 @@ export const playRoulette = async (userNumber) => {
         msg += `😐 Nada aconteceu...`;
     }
     
+    return msg;
+};
+
+// --- Giveaways Logic ---
+
+const formatPrizeLines = (prize) => {
+    const lines = [];
+    if (prize.random > 0) lines.push(`🎲 +${prize.random} !random`);
+    else if (prize.random < 0) lines.push(`🎲 ${prize.random} !random`);
+
+    if (prize.reactions > 0) lines.push(`❤️ +${prize.reactions} reações`);
+    else if (prize.reactions < 0) lines.push(`❤️ ${prize.reactions} reações`);
+
+    if (lines.length === 0) lines.push('😐 Nada aconteceu...');
+    return lines.join('\n');
+};
+
+export const playLuckyBox = async (userNumber) => {
+    await loadDb();
+    const today = getToday();
+    const usage = getDailyUsage(imageDb.luckyBoxUsage, userNumber, today);
+
+    if (usage.used) {
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `🎁 Você já abriu sua *Caixa Misteriosa* hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    const prizes = [
+        { emoji: '💎', name: 'Super Caixa', random: 3, reactions: 2 },
+        { emoji: '🎉', name: 'Boa Caixa', random: 2, reactions: 1 },
+        { emoji: '🍀', name: 'Sorte', random: 1, reactions: 1 },
+        { emoji: '😐', name: 'Vazio', random: 0, reactions: 0 },
+        { emoji: '💤', name: 'Sono', random: -1, reactions: 0 }
+    ];
+    const weights = [10, 20, 30, 30, 10];
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    let selectedPrize = prizes[3];
+
+    for (let i = 0; i < prizes.length; i++) {
+        cumulative += weights[i];
+        if (roll <= cumulative) {
+            selectedPrize = prizes[i];
+            break;
+        }
+    }
+
+    usage.used = true;
+    imageDb.luckyBoxUsage[userNumber] = usage;
+    applyUsagePrize(userNumber, selectedPrize, today);
+    await saveDb();
+
+    let msg = `🎁 *CAIXA MISTERIOSA*\n\n`;
+    msg += `${selectedPrize.emoji} *${selectedPrize.name}* ${selectedPrize.emoji}\n\n`;
+    msg += formatPrizeLines(selectedPrize);
+    return msg;
+};
+
+export const playScratchCard = async (userNumber) => {
+    await loadDb();
+    const today = getToday();
+    const usage = getDailyUsage(imageDb.scratchUsage, userNumber, today);
+
+    if (usage.used) {
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `🧾 Você já usou sua *Raspadinha* hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    const prizes = [
+        { emoji: '🌟', name: 'Raspadinha Dourada', random: 4, reactions: 2 },
+        { emoji: '🎊', name: 'Raspadinha Boa', random: 2, reactions: 1 },
+        { emoji: '🍀', name: 'Raspadinha OK', random: 1, reactions: 0 },
+        { emoji: '😐', name: 'Nada', random: 0, reactions: 0 },
+        { emoji: '🪦', name: 'Azar', random: -2, reactions: -1 }
+    ];
+    const weights = [8, 20, 32, 30, 10];
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    let selectedPrize = prizes[3];
+
+    for (let i = 0; i < prizes.length; i++) {
+        cumulative += weights[i];
+        if (roll <= cumulative) {
+            selectedPrize = prizes[i];
+            break;
+        }
+    }
+
+    usage.used = true;
+    imageDb.scratchUsage[userNumber] = usage;
+    applyUsagePrize(userNumber, selectedPrize, today);
+    await saveDb();
+
+    let msg = `🧾 *RASPADINHA DA SORTE*\n\n`;
+    msg += `${selectedPrize.emoji} *${selectedPrize.name}* ${selectedPrize.emoji}\n\n`;
+    msg += formatPrizeLines(selectedPrize);
+    return msg;
+};
+
+export const playTreasureChest = async (userNumber) => {
+    await loadDb();
+    const today = getToday();
+    const usage = getDailyUsage(imageDb.treasureUsage, userNumber, today);
+
+    if (usage.used) {
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `🧰 Você já abriu seu *Baú do Tesouro* hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    const prizes = [
+        { emoji: '👑', name: 'Tesouro Lendário', random: 5, reactions: 3 },
+        { emoji: '💰', name: 'Tesouro Raro', random: 3, reactions: 2 },
+        { emoji: '💵', name: 'Tesouro Comum', random: 2, reactions: 1 },
+        { emoji: '🪵', name: 'Baú Vazio', random: 0, reactions: 0 },
+        { emoji: '🪤', name: 'Armadilha', random: -2, reactions: -1 }
+    ];
+    const weights = [5, 15, 35, 35, 10];
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    let selectedPrize = prizes[3];
+
+    for (let i = 0; i < prizes.length; i++) {
+        cumulative += weights[i];
+        if (roll <= cumulative) {
+            selectedPrize = prizes[i];
+            break;
+        }
+    }
+
+    usage.used = true;
+    imageDb.treasureUsage[userNumber] = usage;
+    applyUsagePrize(userNumber, selectedPrize, today);
+    await saveDb();
+
+    let msg = `🧰 *BAÚ DO TESOURO*\n\n`;
+    msg += `${selectedPrize.emoji} *${selectedPrize.name}* ${selectedPrize.emoji}\n\n`;
+    msg += formatPrizeLines(selectedPrize);
+    return msg;
+};
+
+export const playSlotMachine = async (userNumber) => {
+    await loadDb();
+    const today = getToday();
+    const usage = getDailyUsage(imageDb.slotUsage, userNumber, today);
+
+    if (usage.used) {
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `🎰 Você já girou o *Slot* hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    const symbols = ['🍒', '🍋', '⭐', '💎', '7️⃣', '🍀'];
+    const rollSymbol = () => symbols[Math.floor(Math.random() * symbols.length)];
+    const slots = [rollSymbol(), rollSymbol(), rollSymbol()];
+    const [a, b, c] = slots;
+
+    let prize = { emoji: '😐', name: 'Sem prêmio', random: 0, reactions: 0 };
+    if (a === b && b === c) {
+        prize = { emoji: '💥', name: 'TRIPLO!', random: 3, reactions: 2 };
+    } else if (a === b || a === c || b === c) {
+        prize = { emoji: '✨', name: 'Dupla!', random: 1, reactions: 1 };
+    }
+
+    usage.used = true;
+    imageDb.slotUsage[userNumber] = usage;
+    applyUsagePrize(userNumber, prize, today);
+    await saveDb();
+
+    let msg = `🎰 *SLOT DA SORTE*\n\n`;
+    msg += `${slots.join(' | ')}\n\n`;
+    msg += `${prize.emoji} *${prize.name}* ${prize.emoji}\n\n`;
+    msg += formatPrizeLines(prize);
+    return msg;
+};
+
+export const playMeteorStorm = async (userNumber) => {
+    await loadDb();
+    const today = getToday();
+    const usage = getDailyUsage(imageDb.meteorUsage, userNumber, today);
+
+    if (usage.used) {
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `☄️ Você já encarou a *Chuva de Meteoros* hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
+    }
+
+    const prizes = [
+        { emoji: '🌠', name: 'Supernova', random: 4, reactions: 2 },
+        { emoji: '✨', name: 'Fragmentos', random: 2, reactions: 1 },
+        { emoji: '😐', name: 'Céu Nublado', random: 0, reactions: 0 },
+        { emoji: '💥', name: 'Impacto', random: -2, reactions: -1 }
+    ];
+    const weights = [15, 35, 35, 15];
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    let selectedPrize = prizes[2];
+
+    for (let i = 0; i < prizes.length; i++) {
+        cumulative += weights[i];
+        if (roll <= cumulative) {
+            selectedPrize = prizes[i];
+            break;
+        }
+    }
+
+    usage.used = true;
+    imageDb.meteorUsage[userNumber] = usage;
+    applyUsagePrize(userNumber, selectedPrize, today);
+    await saveDb();
+
+    let msg = `☄️ *CHUVA DE METEOROS*\n\n`;
+    msg += `${selectedPrize.emoji} *${selectedPrize.name}* ${selectedPrize.emoji}\n\n`;
+    msg += formatPrizeLines(selectedPrize);
     return msg;
 };
 
