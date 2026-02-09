@@ -25,6 +25,7 @@ const helpCommand = async (message, instance) => {
 📷 *Ranking de Imagens*
 • !register - Registra uma foto no ranking (use legenda para dar nome)
 • !random - Mostra uma foto aleatória para votar
+• !carta [posição] - Mostra a carta da imagem (visualização sem votos)
 • !imgrank - Mostra o top 10 das fotos
 
 🎁 *Giveaways*
@@ -39,6 +40,10 @@ const helpCommand = async (message, instance) => {
 🎲 *Jogos*
 • !dado - Rola um dado (1-6)
 • !caraoucoroa - Cara ou coroa
+• !duel - Duelo cara ou coroa com aposta
+• !parimpar - Duelo par ou ímpar com aposta
+• !dueldado - Duelo do dado com aposta
+• !jokenpo - Duelo jokenpô com aposta
 • !ppt [pedra/papel/tesoura] - Pedra, papel ou tesoura
 
 😄 *Diversão*

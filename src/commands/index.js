@@ -33,6 +33,10 @@ import raspadinhaCommand from './raspadinha.js';
 import tesouroCommand from './tesouro.js';
 import slotCommand from './slot.js';
 import meteoroCommand from './meteoro.js';
+import cartaCommand from './carta.js';
+import parimparCommand from './parimpar.js';
+import dueldadoCommand from './dueldado.js';
+import jokenpoCommand from './jokenpo.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 import { checkBan } from '../services/imageRankService.js';
 
@@ -60,6 +64,7 @@ const commands = {
     'cron': cronCommand,
     'register': registerImageCommand,
     'random': randomImageCommand,
+    'carta': cartaCommand,
     'imgrank': imageRankCommand,
     'dice': diceResetCommand,
     'profile': profileCommand,
@@ -69,6 +74,9 @@ const commands = {
     'roleta': rouletteCommand,
     'duel': duelCommand,
     'duelo': duelCommand,
+    'parimpar': parimparCommand,
+    'dueldado': dueldadoCommand,
+    'jokenpo': jokenpoCommand,
     'gift': giftCommand,
     'presente': giftCommand,
     'ban': banCommand,

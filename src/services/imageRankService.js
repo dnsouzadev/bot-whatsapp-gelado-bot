@@ -150,13 +150,27 @@ const saveDb = async () => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-const getToday = () => new Date().toISOString().split('T')[0];
+const TIMEZONE_OFFSET_HOURS = -3;
+
+const getNowInTimezone = () => {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000);
+};
+
+const getToday = () => {
+    const now = getNowInTimezone();
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 const getTimeUntilReset = () => {
-    const now = new Date();
+    const now = getNowInTimezone();
     const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
     const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
     const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
     return { hoursUntilReset, minutesUntilReset };
@@ -189,6 +203,82 @@ const applyUsagePrize = (userNumber, prize, today) => {
 
     imageDb.randomUsage[userNumber] = userRandom;
     imageDb.reactionUsage[userNumber] = userReaction;
+};
+
+const getStakeConfig = (stakeType) => {
+    if (stakeType === 'random') {
+        return { usageKey: 'randomUsage', max: 10, label: '!random' };
+    }
+    return { usageKey: 'reactionUsage', max: 5, label: 'reações' };
+};
+
+const normalizeStakeType = (value) => {
+    if (!value) return 'reaction';
+    const normalized = value.toLowerCase();
+    if (['reacao', 'reação', 'reacoes', 'reações', 'reaction', 'reactions'].includes(normalized)) {
+        return 'reaction';
+    }
+    if (['random', 'rand'].includes(normalized)) {
+        return 'random';
+    }
+    return null;
+};
+
+const ensureStakeAvailable = (userNumber, stakeType, amount, today) => {
+    const { usageKey, max, label } = getStakeConfig(stakeType);
+    const usageMap = imageDb[usageKey];
+    const usage = usageMap[userNumber] || { date: today, count: 0 };
+
+    if (usage.date !== today) {
+        usage.date = today;
+        usage.count = 0;
+    }
+
+    const remaining = max - usage.count;
+    if (remaining < amount) {
+        return {
+            ok: false,
+            message: `❌ Você precisa ter pelo menos ${amount} ${label} disponível(s) para apostar.`
+        };
+    }
+
+    usageMap[userNumber] = usage;
+    return { ok: true };
+};
+
+const applyStakeTransfer = (winner, loser, stakeType, amount, today) => {
+    const { usageKey, max } = getStakeConfig(stakeType);
+    const usageMap = imageDb[usageKey];
+    const loserUsage = usageMap[loser] || { date: today, count: 0 };
+    const winnerUsage = usageMap[winner] || { date: today, count: 0 };
+
+    if (loserUsage.date !== today) {
+        loserUsage.date = today;
+        loserUsage.count = 0;
+    }
+    if (winnerUsage.date !== today) {
+        winnerUsage.date = today;
+        winnerUsage.count = 0;
+    }
+
+    loserUsage.count = clamp(loserUsage.count + amount, 0, max);
+    winnerUsage.count = clamp(winnerUsage.count - amount, 0, max);
+
+    usageMap[loser] = loserUsage;
+    usageMap[winner] = winnerUsage;
+};
+
+const pickWeightedPrize = (prizes) => {
+    const total = prizes.reduce((sum, prize) => sum + prize.weight, 0);
+    const roll = Math.random() * total;
+    let cumulative = 0;
+    for (const prize of prizes) {
+        cumulative += prize.weight;
+        if (roll <= cumulative) {
+            return prize;
+        }
+    }
+    return prizes[prizes.length - 1];
 };
 
 // --- Registration Logic ---
@@ -249,7 +339,7 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     console.log('🔍 RANDOM SERVICE - userNumber received:', userNumber);
     
     // Check usage limit (10 per day per person)
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
     const userUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
 
     console.log('📊 Current usage for', userNumber, ':', userUsage);
@@ -260,12 +350,7 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
     }
 
     if (userUsage.count >= 10) {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-        const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
         
         return `🚫 Você já atingiu o limite de 10 imagens aleatórias por dia.\n⏰ Resetará em ${hoursUntilReset}h ${minutesUntilReset}min`;
     }
@@ -312,6 +397,35 @@ export const sendRandomImage = async (instance, remoteJid, userNumber) => {
         console.error('Error sending random image:', error);
         throw error;
     }
+};
+
+export const sendImageCard = async (instance, remoteJid, rankPosition) => {
+    await loadDb();
+
+    if (imageDb.images.length === 0) {
+        return 'Nenhuma imagem cadastrada.';
+    }
+
+    const sorted = [...imageDb.images].sort((a, b) => b.score - a.score);
+    let image = null;
+    let rank = null;
+
+    if (rankPosition) {
+        const requestedRank = parseInt(rankPosition, 10);
+        if (Number.isNaN(requestedRank) || requestedRank < 1 || requestedRank > sorted.length) {
+            return `❌ Informe uma posição válida entre 1 e ${sorted.length}.`;
+        }
+        image = sorted[requestedRank - 1];
+        rank = requestedRank;
+    } else {
+        const randomIndex = Math.floor(Math.random() * sorted.length);
+        image = sorted[randomIndex];
+        rank = sorted.findIndex((img) => img.id === image.id) + 1;
+    }
+
+    const caption = `🖼️ *CARTA DA IMAGEM*\n🏆 Rank: #${rank}\n📛 Nome: ${image.name || 'Sem nome'}\n❤️ Reações: ${image.score}\n\n(Reações desativadas nesta visualização)`;
+    await sendImage(instance, remoteJid, image.base64, caption);
+    return null;
 };
 
 // --- Reaction Logic ---
@@ -468,9 +582,9 @@ export const getLeaderboard = async () => {
 export const playDice = async (userNumber, chosenNumber) => {
     await loadDb();
     
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const currentHour = now.getHours();
+    const today = getToday();
+    const now = getNowInTimezone();
+    const currentHour = now.getUTCHours();
     
     // Determine current period
     let period, periodName, periodEmoji;
@@ -510,17 +624,17 @@ export const playDice = async (userNumber, chosenNumber) => {
         let nextPeriodStart, nextPeriodName;
         if (period === 'morning') {
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setHours(12, 0, 0, 0);
+            nextPeriodStart.setUTCHours(12, 0, 0, 0);
             nextPeriodName = '☀️ Tarde (12:00)';
         } else if (period === 'afternoon') {
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setHours(18, 0, 0, 0);
+            nextPeriodStart.setUTCHours(18, 0, 0, 0);
             nextPeriodName = '🌙 Noite (18:00)';
         } else {
             // Night - next is tomorrow morning
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setDate(nextPeriodStart.getDate() + 1);
-            nextPeriodStart.setHours(0, 0, 0, 0);
+            nextPeriodStart.setUTCDate(nextPeriodStart.getUTCDate() + 1);
+            nextPeriodStart.setUTCHours(0, 0, 0, 0);
             nextPeriodName = '🌅 Manhã (00:00)';
         }
         
@@ -564,8 +678,8 @@ export const playRoulette = async (userNumber) => {
     await loadDb();
     
     const today = getToday();
-    const now = new Date();
-    const currentHour = now.getHours();
+    const now = getNowInTimezone();
+    const currentHour = now.getUTCHours();
     
     // Determine current period
     let period, periodName, periodEmoji;
@@ -604,16 +718,16 @@ export const playRoulette = async (userNumber) => {
         let nextPeriodStart, nextPeriodName;
         if (period === 'morning') {
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setHours(12, 0, 0, 0);
+            nextPeriodStart.setUTCHours(12, 0, 0, 0);
             nextPeriodName = '☀️ Tarde (12:00)';
         } else if (period === 'afternoon') {
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setHours(18, 0, 0, 0);
+            nextPeriodStart.setUTCHours(18, 0, 0, 0);
             nextPeriodName = '🌙 Noite (18:00)';
         } else {
             nextPeriodStart = new Date(now);
-            nextPeriodStart.setDate(nextPeriodStart.getDate() + 1);
-            nextPeriodStart.setHours(0, 0, 0, 0);
+            nextPeriodStart.setUTCDate(nextPeriodStart.getUTCDate() + 1);
+            nextPeriodStart.setUTCHours(0, 0, 0, 0);
             nextPeriodName = '🌅 Manhã (00:00)';
         }
         
@@ -627,47 +741,20 @@ export const playRoulette = async (userNumber) => {
     userRoulette[period] = true;
     imageDb.rouletteUsage[userNumber] = userRoulette;
     
-    // Roulette prizes
+    // Roulette prizes (45% perde, 25% nada, 30% ganha)
     const prizes = [
-        { emoji: '💎', name: 'JACKPOT', random: 5, reactions: 3 },
-        { emoji: '🎉', name: 'GRANDE PRÊMIO', random: 3, reactions: 2 },
-        { emoji: '⭐', name: 'Prêmio Bom', random: 2, reactions: 1 },
-        { emoji: '🍀', name: 'Sorte Média', random: 1, reactions: 1 },
-        { emoji: '😐', name: 'Quase', random: 0, reactions: 0 },
-        { emoji: '💀', name: 'PERDEU', random: -2, reactions: -1 }
+        { emoji: '💀', name: 'PERDEU', random: -2, reactions: -1, weight: 25 },
+        { emoji: '😵', name: 'AZAR', random: -1, reactions: -1, weight: 20 },
+        { emoji: '😐', name: 'Quase', random: 0, reactions: 0, weight: 25 },
+        { emoji: '🍀', name: 'Sorte Média', random: 1, reactions: 1, weight: 15 },
+        { emoji: '🎉', name: 'GRANDE PRÊMIO', random: 3, reactions: 2, weight: 10 },
+        { emoji: '💎', name: 'JACKPOT', random: 5, reactions: 3, weight: 5 }
     ];
     
-    const weights = [5, 10, 20, 30, 25, 10]; // % de chance
-    const random = Math.random() * 100;
-    let cumulative = 0;
-    let selectedPrize = prizes[4]; // Default
-    
-    for (let i = 0; i < prizes.length; i++) {
-        cumulative += weights[i];
-        if (random <= cumulative) {
-            selectedPrize = prizes[i];
-            break;
-        }
-    }
+    const selectedPrize = pickWeightedPrize(prizes);
     
     // Apply prize
-    const userRandom = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
-    const userReaction = imageDb.reactionUsage[userNumber] || { date: today, count: 0 };
-    
-    if (userRandom.date !== today) {
-        userRandom.date = today;
-        userRandom.count = 0;
-    }
-    if (userReaction.date !== today) {
-        userReaction.date = today;
-        userReaction.count = 0;
-    }
-    
-    userRandom.count = Math.max(0, Math.min(10, userRandom.count - selectedPrize.random));
-    userReaction.count = Math.max(0, Math.min(5, userReaction.count - selectedPrize.reactions));
-    
-    imageDb.randomUsage[userNumber] = userRandom;
-    imageDb.reactionUsage[userNumber] = userReaction;
+    applyUsagePrize(userNumber, selectedPrize, today);
     await saveDb();
     
     let msg = `${periodEmoji} *${periodName.toUpperCase()}*\n\n`;
@@ -712,24 +799,14 @@ export const playLuckyBox = async (userNumber) => {
     }
 
     const prizes = [
-        { emoji: '💎', name: 'Super Caixa', random: 3, reactions: 2 },
-        { emoji: '🎉', name: 'Boa Caixa', random: 2, reactions: 1 },
-        { emoji: '🍀', name: 'Sorte', random: 1, reactions: 1 },
-        { emoji: '😐', name: 'Vazio', random: 0, reactions: 0 },
-        { emoji: '💤', name: 'Sono', random: -1, reactions: 0 }
+        { emoji: '💀', name: 'Caixa Quebrada', random: -2, reactions: -1, weight: 25 },
+        { emoji: '💤', name: 'Sono', random: -1, reactions: 0, weight: 20 },
+        { emoji: '😐', name: 'Vazio', random: 0, reactions: 0, weight: 25 },
+        { emoji: '🍀', name: 'Sorte', random: 1, reactions: 1, weight: 15 },
+        { emoji: '🎉', name: 'Boa Caixa', random: 2, reactions: 1, weight: 10 },
+        { emoji: '💎', name: 'Super Caixa', random: 3, reactions: 2, weight: 5 }
     ];
-    const weights = [10, 20, 30, 30, 10];
-    const roll = Math.random() * 100;
-    let cumulative = 0;
-    let selectedPrize = prizes[3];
-
-    for (let i = 0; i < prizes.length; i++) {
-        cumulative += weights[i];
-        if (roll <= cumulative) {
-            selectedPrize = prizes[i];
-            break;
-        }
-    }
+    const selectedPrize = pickWeightedPrize(prizes);
 
     usage.used = true;
     imageDb.luckyBoxUsage[userNumber] = usage;
@@ -753,24 +830,14 @@ export const playScratchCard = async (userNumber) => {
     }
 
     const prizes = [
-        { emoji: '🌟', name: 'Raspadinha Dourada', random: 4, reactions: 2 },
-        { emoji: '🎊', name: 'Raspadinha Boa', random: 2, reactions: 1 },
-        { emoji: '🍀', name: 'Raspadinha OK', random: 1, reactions: 0 },
-        { emoji: '😐', name: 'Nada', random: 0, reactions: 0 },
-        { emoji: '🪦', name: 'Azar', random: -2, reactions: -1 }
+        { emoji: '🪦', name: 'Azar', random: -2, reactions: -1, weight: 25 },
+        { emoji: '💔', name: 'Raspadinha Roubada', random: -1, reactions: -1, weight: 20 },
+        { emoji: '😐', name: 'Nada', random: 0, reactions: 0, weight: 25 },
+        { emoji: '🍀', name: 'Raspadinha OK', random: 1, reactions: 0, weight: 15 },
+        { emoji: '🎊', name: 'Raspadinha Boa', random: 2, reactions: 1, weight: 10 },
+        { emoji: '🌟', name: 'Raspadinha Dourada', random: 4, reactions: 2, weight: 5 }
     ];
-    const weights = [8, 20, 32, 30, 10];
-    const roll = Math.random() * 100;
-    let cumulative = 0;
-    let selectedPrize = prizes[3];
-
-    for (let i = 0; i < prizes.length; i++) {
-        cumulative += weights[i];
-        if (roll <= cumulative) {
-            selectedPrize = prizes[i];
-            break;
-        }
-    }
+    const selectedPrize = pickWeightedPrize(prizes);
 
     usage.used = true;
     imageDb.scratchUsage[userNumber] = usage;
@@ -794,24 +861,14 @@ export const playTreasureChest = async (userNumber) => {
     }
 
     const prizes = [
-        { emoji: '👑', name: 'Tesouro Lendário', random: 5, reactions: 3 },
-        { emoji: '💰', name: 'Tesouro Raro', random: 3, reactions: 2 },
-        { emoji: '💵', name: 'Tesouro Comum', random: 2, reactions: 1 },
-        { emoji: '🪵', name: 'Baú Vazio', random: 0, reactions: 0 },
-        { emoji: '🪤', name: 'Armadilha', random: -2, reactions: -1 }
+        { emoji: '🪤', name: 'Armadilha', random: -2, reactions: -1, weight: 25 },
+        { emoji: '🕳️', name: 'Baú Falso', random: -1, reactions: -1, weight: 20 },
+        { emoji: '🪵', name: 'Baú Vazio', random: 0, reactions: 0, weight: 25 },
+        { emoji: '💵', name: 'Tesouro Comum', random: 2, reactions: 1, weight: 15 },
+        { emoji: '💰', name: 'Tesouro Raro', random: 3, reactions: 2, weight: 10 },
+        { emoji: '👑', name: 'Tesouro Lendário', random: 5, reactions: 3, weight: 5 }
     ];
-    const weights = [5, 15, 35, 35, 10];
-    const roll = Math.random() * 100;
-    let cumulative = 0;
-    let selectedPrize = prizes[3];
-
-    for (let i = 0; i < prizes.length; i++) {
-        cumulative += weights[i];
-        if (roll <= cumulative) {
-            selectedPrize = prizes[i];
-            break;
-        }
-    }
+    const selectedPrize = pickWeightedPrize(prizes);
 
     usage.used = true;
     imageDb.treasureUsage[userNumber] = usage;
@@ -836,14 +893,27 @@ export const playSlotMachine = async (userNumber) => {
 
     const symbols = ['🍒', '🍋', '⭐', '💎', '7️⃣', '🍀'];
     const rollSymbol = () => symbols[Math.floor(Math.random() * symbols.length)];
-    const slots = [rollSymbol(), rollSymbol(), rollSymbol()];
-    const [a, b, c] = slots;
+    const prizes = [
+        { emoji: '💥', name: 'TRIPLO!', random: 3, reactions: 2, weight: 5, slotType: 'triple' },
+        { emoji: '✨', name: 'Dupla!', random: 1, reactions: 1, weight: 25, slotType: 'double' },
+        { emoji: '😐', name: 'Sem prêmio', random: 0, reactions: 0, weight: 25, slotType: 'none' },
+        { emoji: '💀', name: 'Má sorte', random: -1, reactions: -1, weight: 20, slotType: 'none' },
+        { emoji: '🪦', name: 'Quebrou!', random: -2, reactions: -1, weight: 25, slotType: 'none' }
+    ];
+    const prize = pickWeightedPrize(prizes);
 
-    let prize = { emoji: '😐', name: 'Sem prêmio', random: 0, reactions: 0 };
-    if (a === b && b === c) {
-        prize = { emoji: '💥', name: 'TRIPLO!', random: 3, reactions: 2 };
-    } else if (a === b || a === c || b === c) {
-        prize = { emoji: '✨', name: 'Dupla!', random: 1, reactions: 1 };
+    let slots = [rollSymbol(), rollSymbol(), rollSymbol()];
+    if (prize.slotType === 'triple') {
+        const symbol = rollSymbol();
+        slots = [symbol, symbol, symbol];
+    } else if (prize.slotType === 'double') {
+        const symbol = rollSymbol();
+        let third = rollSymbol();
+        while (third === symbol) {
+            third = rollSymbol();
+        }
+        const positions = [symbol, symbol, third];
+        slots = positions.sort(() => Math.random() - 0.5);
     }
 
     usage.used = true;
@@ -869,23 +939,14 @@ export const playMeteorStorm = async (userNumber) => {
     }
 
     const prizes = [
-        { emoji: '🌠', name: 'Supernova', random: 4, reactions: 2 },
-        { emoji: '✨', name: 'Fragmentos', random: 2, reactions: 1 },
-        { emoji: '😐', name: 'Céu Nublado', random: 0, reactions: 0 },
-        { emoji: '💥', name: 'Impacto', random: -2, reactions: -1 }
+        { emoji: '💥', name: 'Impacto', random: -2, reactions: -1, weight: 25 },
+        { emoji: '🌑', name: 'Céu Escuro', random: -1, reactions: -1, weight: 20 },
+        { emoji: '😐', name: 'Céu Nublado', random: 0, reactions: 0, weight: 25 },
+        { emoji: '✨', name: 'Fragmentos', random: 2, reactions: 1, weight: 15 },
+        { emoji: '🌠', name: 'Supernova', random: 4, reactions: 2, weight: 10 },
+        { emoji: '🚀', name: 'Explosão Cósmica', random: 5, reactions: 3, weight: 5 }
     ];
-    const weights = [15, 35, 35, 15];
-    const roll = Math.random() * 100;
-    let cumulative = 0;
-    let selectedPrize = prizes[2];
-
-    for (let i = 0; i < prizes.length; i++) {
-        cumulative += weights[i];
-        if (roll <= cumulative) {
-            selectedPrize = prizes[i];
-            break;
-        }
-    }
+    const selectedPrize = pickWeightedPrize(prizes);
 
     usage.used = true;
     imageDb.meteorUsage[userNumber] = usage;
@@ -900,97 +961,236 @@ export const playMeteorStorm = async (userNumber) => {
 
 // --- Duel Logic ---
 
-export const startDuel = async (remoteJid, challengerNumber, challengedNumber, challengerChoice) => {
+const duelConfigs = {
+    coin: {
+        name: 'Cara ou Coroa',
+        requiresAccepterChoice: false,
+        validateChoice: (choice) => ['cara', 'coroa'].includes(choice),
+        resolve: (duel) => {
+            const result = Math.random() < 0.5 ? 'cara' : 'coroa';
+            const challengerWon = result === duel.challengerChoice;
+            return {
+                winner: challengerWon ? duel.challenger : duel.challenged,
+                loser: challengerWon ? duel.challenged : duel.challenger,
+                summary: `🪙 Resultado: ${result}`,
+                extra: { result, challengerWon }
+            };
+        }
+    },
+    parimpar: {
+        name: 'Par ou Ímpar',
+        requiresAccepterChoice: true,
+        validateChoice: (choice) => ['par', 'impar'].includes(choice),
+        resolve: (duel) => {
+            const roll = Math.floor(Math.random() * 6) + 1;
+            const parity = roll % 2 === 0 ? 'par' : 'impar';
+            const challengerWon = parity === duel.challengerChoice;
+            return {
+                winner: challengerWon ? duel.challenger : duel.challenged,
+                loser: challengerWon ? duel.challenged : duel.challenger,
+                summary: `🎲 Número: ${roll} (${parity})`,
+                extra: { roll, parity, challengerWon }
+            };
+        }
+    },
+    dice: {
+        name: 'Duelo do Dado',
+        requiresAccepterChoice: true,
+        validateChoice: (choice) => {
+            const num = parseInt(choice, 10);
+            return !Number.isNaN(num) && num >= 1 && num <= 6;
+        },
+        resolve: (duel, accepterChoice) => {
+            const roll = Math.floor(Math.random() * 6) + 1;
+            const challengerPick = parseInt(duel.challengerChoice, 10);
+            const accepterPick = parseInt(accepterChoice, 10);
+
+            if (roll === challengerPick) {
+                return {
+                    winner: duel.challenger,
+                    loser: duel.challenged,
+                    summary: `🎲 Número: ${roll} (acertou o desafiante)`
+                };
+            }
+            if (roll === accepterPick) {
+                return {
+                    winner: duel.challenged,
+                    loser: duel.challenger,
+                    summary: `🎲 Número: ${roll} (acertou o desafiado)`
+                };
+            }
+            return {
+                winner: null,
+                loser: null,
+                summary: `🎲 Número: ${roll} (ninguém acertou)`
+            };
+        }
+    },
+    jokenpo: {
+        name: 'Jokenpô',
+        requiresAccepterChoice: true,
+        validateChoice: (choice) => ['pedra', 'papel', 'tesoura'].includes(choice),
+        resolve: (duel, accepterChoice) => {
+            const challenger = duel.challengerChoice;
+            const accepter = accepterChoice;
+            if (challenger === accepter) {
+                return {
+                    winner: null,
+                    loser: null,
+                    summary: `✊ ${challenger} vs ${accepter} (empate)`
+                };
+            }
+            const winsAgainst = {
+                pedra: 'tesoura',
+                papel: 'pedra',
+                tesoura: 'papel'
+            };
+            const challengerWon = winsAgainst[challenger] === accepter;
+            return {
+                winner: challengerWon ? duel.challenger : duel.challenged,
+                loser: challengerWon ? duel.challenged : duel.challenger,
+                summary: `✊ ${challenger} vs ${accepter}`,
+                extra: { challengerWon }
+            };
+        }
+    }
+};
+
+export const startDuel = async (
+    remoteJid,
+    challengerNumber,
+    challengedNumber,
+    challengerChoice,
+    stakeTypeInput,
+    stakeAmountInput,
+    duelType = 'coin'
+) => {
     await loadDb();
-    
-    // Check if challenger is banned
+
     if (imageDb.bannedUsers[challengerNumber]) {
         return '🚫 Você está banido e não pode duelar.';
     }
-    
-    // Check if challenged is banned
+
     if (imageDb.bannedUsers[challengedNumber]) {
         return '🚫 Este usuário está banido.';
     }
-    
-    // Can't duel yourself
+
     if (challengerNumber === challengedNumber) {
         return '❌ Você não pode duelar consigo mesmo!';
     }
-    
-    // Check if there's already an active duel in this chat
+
     if (imageDb.activeDuels[remoteJid]) {
         return '⚔️ Já existe um duelo ativo neste grupo! Aguarde ele terminar.';
     }
-    
-    // Validate choice
-    if (challengerChoice !== 'cara' && challengerChoice !== 'coroa') {
-        return '❌ Escolha "cara" ou "coroa".\nExemplo: !duel @pessoa cara';
+
+    const config = duelConfigs[duelType];
+    if (!config) {
+        return '❌ Tipo de duelo inválido.';
     }
-    
-    // Create duel
+
+    if (!config.validateChoice(challengerChoice)) {
+        return `❌ Escolha inválida para ${config.name}.`;
+    }
+
+    const stakeType = normalizeStakeType(stakeTypeInput);
+    if (!stakeType) {
+        return '❌ Tipo de aposta inválido. Use "reacao" ou "random".';
+    }
+
+    const stakeAmount = parseInt(stakeAmountInput, 10) || 1;
+    if (stakeAmount <= 0) {
+        return '❌ A quantidade apostada deve ser maior que zero.';
+    }
+
+    const { max, label } = getStakeConfig(stakeType);
+    if (stakeAmount > max) {
+        return `❌ Aposta máxima para ${label} é ${max}.`;
+    }
+
+    const today = getToday();
+    const challengerCheck = ensureStakeAvailable(challengerNumber, stakeType, stakeAmount, today);
+    if (!challengerCheck.ok) {
+        return challengerCheck.message;
+    }
+    const challengedCheck = ensureStakeAvailable(challengedNumber, stakeType, stakeAmount, today);
+    if (!challengedCheck.ok) {
+        return `❌ O desafiado não tem ${label} suficiente para apostar.`;
+    }
+
     imageDb.activeDuels[remoteJid] = {
+        type: duelType,
         challenger: challengerNumber,
         challenged: challengedNumber,
-        challengerChoice: challengerChoice
+        challengerChoice,
+        stakeType,
+        stakeAmount
     };
     await saveDb();
-    
-    return null; // Success - duel created
+
+    return null;
 };
 
-export const acceptDuel = async (remoteJid, accepterNumber) => {
+export const acceptDuel = async (remoteJid, accepterNumber, accepterChoice) => {
     await loadDb();
-    
+
     const duel = imageDb.activeDuels[remoteJid];
     if (!duel) {
         return '❌ Não há duelo ativo neste grupo.';
     }
-    
+
     if (duel.challenged !== accepterNumber) {
         return '❌ Este duelo não é para você!';
     }
-    
-    // Flip coin
-    const result = Math.random() < 0.5 ? 'cara' : 'coroa';
-    const challengerWon = result === duel.challengerChoice;
-    const winner = challengerWon ? duel.challenger : duel.challenged;
-    const loser = challengerWon ? duel.challenged : duel.challenger;
-    
-    // Transfer 1 reaction
-    const today = new Date().toISOString().split('T')[0];
-    const loserReaction = imageDb.reactionUsage[loser] || { date: today, count: 0 };
-    const winnerReaction = imageDb.reactionUsage[winner] || { date: today, count: 0 };
-    
-    if (loserReaction.date !== today) {
-        loserReaction.date = today;
-        loserReaction.count = 0;
+
+    const config = duelConfigs[duel.type];
+    if (!config) {
+        delete imageDb.activeDuels[remoteJid];
+        await saveDb();
+        return '❌ Duelo inválido.';
     }
-    if (winnerReaction.date !== today) {
-        winnerReaction.date = today;
-        winnerReaction.count = 0;
+
+    if (config.requiresAccepterChoice && !accepterChoice) {
+        return `❌ Você precisa escolher sua opção para ${config.name}.`;
     }
-    
-    // Add 1 to loser (reducing available), remove 1 from winner (increasing available)
-    loserReaction.count = Math.min(5, loserReaction.count + 1);
-    winnerReaction.count = Math.max(0, winnerReaction.count - 1);
-    
-    imageDb.reactionUsage[loser] = loserReaction;
-    imageDb.reactionUsage[winner] = winnerReaction;
-    
-    // Clear duel
+
+    if (config.requiresAccepterChoice && !config.validateChoice(accepterChoice)) {
+        return `❌ Escolha inválida para ${config.name}.`;
+    }
+
+    if (duel.type === 'parimpar' && accepterChoice === duel.challengerChoice) {
+        return '❌ Escolha a opção oposta ao desafiante.';
+    }
+
+    if (duel.type === 'dice' && accepterChoice === duel.challengerChoice) {
+        return '❌ Escolha um número diferente do desafiante.';
+    }
+
+    const today = getToday();
+    const challengerCheck = ensureStakeAvailable(duel.challenger, duel.stakeType, duel.stakeAmount, today);
+    if (!challengerCheck.ok) {
+        delete imageDb.activeDuels[remoteJid];
+        await saveDb();
+        return '❌ O desafiante não tem mais saldo para apostar.';
+    }
+    const challengedCheck = ensureStakeAvailable(duel.challenged, duel.stakeType, duel.stakeAmount, today);
+    if (!challengedCheck.ok) {
+        delete imageDb.activeDuels[remoteJid];
+        await saveDb();
+        return '❌ Você não tem saldo suficiente para aceitar este duelo.';
+    }
+
+    const result = config.resolve(duel, accepterChoice);
+    if (result.winner && result.loser) {
+        applyStakeTransfer(result.winner, result.loser, duel.stakeType, duel.stakeAmount, today);
+    }
+
     delete imageDb.activeDuels[remoteJid];
     await saveDb();
-    
-    const challengerChoiceEmoji = duel.challengerChoice === 'cara' ? '👤' : '👑';
-    const resultEmoji = result === 'cara' ? '👤' : '👑';
-    
+
     return {
-        challengerWon,
+        duel,
         result,
-        challengerChoice: duel.challengerChoice,
-        resultEmoji,
-        challengerChoiceEmoji
+        accepterChoice
     };
 };
 
@@ -999,7 +1199,7 @@ export const acceptDuel = async (remoteJid, accepterNumber) => {
 export const giftToUser = async (giverNumber, receiverNumber) => {
     await loadDb();
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
     
     // Check if giver is banned
     if (imageDb.bannedUsers[giverNumber]) {
@@ -1025,14 +1225,8 @@ export const giftToUser = async (giverNumber, receiverNumber) => {
     }
     
     if (giftUsage.used) {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        const hoursUntil = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-        const minutesUntil = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
-        
-        return `🎁 Você já enviou um presente hoje!\n⏰ Disponível em: ${hoursUntil}h ${minutesUntil}min`;
+        const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
+        return `🎁 Você já enviou um presente hoje!\n⏰ Disponível em: ${hoursUntilReset}h ${minutesUntilReset}min`;
     }
     
     // Transfer 1 random use from giver to receiver
@@ -1122,9 +1316,9 @@ export const checkBan = async (userNumber) => {
 export const getUserProfile = async (userNumber) => {
     await loadDb();
     
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const currentHour = now.getHours();
+    const today = getToday();
+    const now = getNowInTimezone();
+    const currentHour = now.getUTCHours();
     
     // Random usage
     const randomUsage = imageDb.randomUsage[userNumber] || { date: today, count: 0 };
@@ -1174,11 +1368,7 @@ export const getUserProfile = async (userNumber) => {
     }
     
     // Time until reset
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
-    const minutesUntilReset = Math.floor(((tomorrow - now) % (1000 * 60 * 60)) / (1000 * 60));
+    const { hoursUntilReset, minutesUntilReset } = getTimeUntilReset();
     
     let profile = `👤 *SEU PERFIL*\n\n`;
     profile += `🎲 *Comandos Disponíveis:*\n`;
@@ -1200,14 +1390,29 @@ export const clearAllUsage = async () => {
     const totalUsers = new Set([
         ...Object.keys(imageDb.randomUsage),
         ...Object.keys(imageDb.reactionUsage),
-        ...Object.keys(imageDb.diceUsage)
+        ...Object.keys(imageDb.diceUsage),
+        ...Object.keys(imageDb.rouletteUsage),
+        ...Object.keys(imageDb.giftUsage),
+        ...Object.keys(imageDb.luckyBoxUsage),
+        ...Object.keys(imageDb.scratchUsage),
+        ...Object.keys(imageDb.treasureUsage),
+        ...Object.keys(imageDb.slotUsage),
+        ...Object.keys(imageDb.meteorUsage)
     ]).size;
     
     imageDb.randomUsage = {};
     imageDb.reactionUsage = {};
     imageDb.diceUsage = {};
+    imageDb.rouletteUsage = {};
+    imageDb.giftUsage = {};
+    imageDb.luckyBoxUsage = {};
+    imageDb.scratchUsage = {};
+    imageDb.treasureUsage = {};
+    imageDb.slotUsage = {};
+    imageDb.meteorUsage = {};
+    imageDb.activeDuels = {};
     
     await saveDb();
     
-    return `🔄 *Reset Completo Executado!*\n\n✅ Resetados ${totalUsers} usuários:\n├ Limites de !random zerados\n├ Limites de reações zerados\n└ Dados liberados (3 períodos)`;
+    return `🔄 *Reset Completo Executado!*\n\n✅ Resetados ${totalUsers} usuários:\n├ Limites de !random zerados\n├ Limites de reações zerados\n├ Dados liberados (3 períodos)\n└ Giveaways e duelos resetados`;
 };
