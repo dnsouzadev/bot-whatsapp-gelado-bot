@@ -27,6 +27,15 @@ const helpCommand = async (message, instance) => {
 • !random - Mostra uma foto aleatória para votar
 • !imgrank - Mostra o top 10 das fotos
 
+🎁 *Giveaways*
+• !dice - Jogo do dado com reset de limites
+• !roleta - Roleta da sorte por período
+• !caixa - Caixa misteriosa diária
+• !raspadinha - Raspadinha diária
+• !tesouro - Baú do tesouro diário
+• !slot - Slot da sorte diário
+• !meteoro - Chuva de meteoros diária
+
 🎲 *Jogos*
 • !dado - Rola um dado (1-6)
 • !caraoucoroa - Cara ou coroa

@@ -28,6 +28,11 @@ import rouletteCommand from './roulette.js';
 import duelCommand from './duel.js';
 import giftCommand from './gift.js';
 import banCommand from './ban.js';
+import caixaCommand from './caixa.js';
+import raspadinhaCommand from './raspadinha.js';
+import tesouroCommand from './tesouro.js';
+import slotCommand from './slot.js';
+import meteoroCommand from './meteoro.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 import { checkBan } from '../services/imageRankService.js';
 
@@ -66,7 +71,12 @@ const commands = {
     'duelo': duelCommand,
     'gift': giftCommand,
     'presente': giftCommand,
-    'ban': banCommand
+    'ban': banCommand,
+    'caixa': caixaCommand,
+    'raspadinha': raspadinhaCommand,
+    'tesouro': tesouroCommand,
+    'slot': slotCommand,
+    'meteoro': meteoroCommand
 };
 
 const handleCommand = async (message, command, instance) => {
