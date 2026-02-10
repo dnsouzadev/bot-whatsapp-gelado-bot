@@ -50,16 +50,26 @@ const getMessageText = (messageNode) => {
 const normalizeIncomingMessage = (data) => {
     if (!data) return null;
 
-    if (Array.isArray(data.messages) && data.messages.length > 0) {
-        return data.messages[0];
-    }
+    const candidates = [
+        data,
+        data.data,
+        data.payload,
+        data.message,
+        data.messages?.[0],
+        data.data?.message,
+        data.data?.messages?.[0],
+        data.payload?.message,
+        data.payload?.messages?.[0]
+    ].filter(Boolean);
 
-    if (data.message?.key && data.message?.message) {
-        return data.message;
-    }
+    for (const candidate of candidates) {
+        if (candidate?.key && candidate?.message) {
+            return candidate;
+        }
 
-    if (data.key && data.message) {
-        return data;
+        if (candidate?.message?.key && candidate?.message?.message) {
+            return candidate.message;
+        }
     }
 
     return null;
@@ -94,13 +104,15 @@ app.post('/webhook', async (req, res) => {
             return;
         }
 
-        // Processa apenas mensagens recebidas (suporta variações de payload)
-        if (event !== 'messages.upsert' && event !== 'send.message') return;
-
-        const message = normalizeIncomingMessage(data);
+        // Processa mensagens recebidas (suporta variações de evento/payload)
+        const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
         if (!message) {
-            console.log('ℹ️ Evento de mensagem sem payload compatível. Chaves data:', Object.keys(data || {}));
+            console.log('ℹ️ Evento sem payload de mensagem compatível. Chaves data:', Object.keys(data || {}));
             return;
+        }
+
+        if (event !== 'messages.upsert' && event !== 'send.message') {
+            console.log(`ℹ️ Evento ${event} continha mensagem e será processado.`);
         }
 
         // Check if it's a reaction
@@ -125,10 +137,16 @@ app.post('/webhook', async (req, res) => {
         // if (message.key.fromMe) return;
 
         // Ignora mensagens de status
-        if (message.key.remoteJid === 'status@broadcast') return;
+        const remoteJid = message?.key?.remoteJid;
+        if (!remoteJid) {
+            console.log('ℹ️ Mensagem sem remoteJid, ignorando.');
+            return;
+        }
+
+        if (remoteJid === 'status@broadcast') return;
 
         // Verifica se é um grupo (remoteJid termina com @g.us)
-        const isGroup = message.key.remoteJid.endsWith('@g.us');
+        const isGroup = remoteJid.endsWith('@g.us');
 
         if (!isGroup) {
             console.log('Mensagem ignorada: não é de um grupo');
@@ -139,12 +157,12 @@ app.post('/webhook', async (req, res) => {
         const messageContent = getMessageText(message.message).trim();
 
         console.log('Mensagem recebida:', messageContent);
-        console.log('De:', message.key.remoteJid);
+        console.log('De:', remoteJid);
 
         // Verifica se o usuário está criando um comando personalizado
         const isCreating = await handleCreationStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
@@ -154,7 +172,7 @@ app.post('/webhook', async (req, res) => {
         // Verifica se o usuário está configurando um cron
         const isCronSetup = await handleCronStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
@@ -164,7 +182,7 @@ app.post('/webhook', async (req, res) => {
         // Verifica se o usuário está registrando imagem
         const isRegistering = await handleImageRegistrationStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
