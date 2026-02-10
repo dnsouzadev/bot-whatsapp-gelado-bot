@@ -1,5 +1,5 @@
 import { sendReply } from '../services/evolutionApi.js';
-import { banUser, unbanUser } from '../services/imageRankService.js';
+import { banUser, unbanUser, checkAdmin } from '../services/imageRankService.js';
 
 const banCommand = async (message, instance, args) => {
     try {
@@ -7,8 +7,11 @@ const banCommand = async (message, instance, args) => {
         
         // Check if message is from bot itself (fromMe: true)
         const isFromBot = message.key.fromMe === true;
+        const requesterNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
+            message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        const isAdmin = isFromBot || await checkAdmin(requesterNumber);
         
-        if (!isFromBot) {
+        if (!isAdmin) {
             await sendReply(
                 instance, 
                 message.key.remoteJid, 

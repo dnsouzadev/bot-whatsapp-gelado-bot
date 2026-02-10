@@ -9,9 +9,86 @@ import { handleImageRegistrationStep, handleReaction } from './services/imageRan
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+const webhookPayloadLimit = process.env.WEBHOOK_PAYLOAD_LIMIT || '200mb';
+app.use(express.json({ limit: webhookPayloadLimit }));
+app.use(express.urlencoded({ limit: webhookPayloadLimit, extended: true }));
 
 const PORT = process.env.PORT || 3000;
+
+
+const unwrapMessageContent = (messageNode) => {
+    if (!messageNode) return {};
+
+    if (messageNode.ephemeralMessage?.message) {
+        return unwrapMessageContent(messageNode.ephemeralMessage.message);
+    }
+
+    if (messageNode.viewOnceMessage?.message) {
+        return unwrapMessageContent(messageNode.viewOnceMessage.message);
+    }
+
+    if (messageNode.viewOnceMessageV2?.message) {
+        return unwrapMessageContent(messageNode.viewOnceMessageV2.message);
+    }
+
+    return messageNode;
+};
+
+const getMessageText = (messageNode) => {
+    const content = unwrapMessageContent(messageNode);
+
+    return content?.conversation ||
+        content?.extendedTextMessage?.text ||
+        content?.imageMessage?.caption ||
+        content?.videoMessage?.caption ||
+        content?.documentMessage?.caption ||
+        content?.buttonsResponseMessage?.selectedDisplayText ||
+        content?.listResponseMessage?.title ||
+        '';
+};
+
+const normalizeIncomingMessage = (data) => {
+    if (!data) return null;
+
+    const queue = [data];
+    const visited = new Set();
+
+    while (queue.length > 0) {
+        const candidate = queue.shift();
+        if (!candidate || typeof candidate !== 'object') continue;
+
+        if (visited.has(candidate)) continue;
+        visited.add(candidate);
+
+        if (candidate?.key && candidate?.message) {
+            return candidate;
+        }
+
+        if (candidate?.message?.key && candidate?.message?.message) {
+            return candidate.message;
+        }
+
+        if (Array.isArray(candidate)) {
+            queue.push(...candidate);
+            continue;
+        }
+
+        const nestedKeys = ['data', 'payload', 'message', 'messages'];
+        for (const key of nestedKeys) {
+            if (candidate[key]) {
+                queue.push(candidate[key]);
+            }
+        }
+
+        const numericLikeKeys = Object.keys(candidate).filter((k) => /^\d+$/.test(k));
+        for (const key of numericLikeKeys) {
+            queue.push(candidate[key]);
+        }
+    }
+
+    return null;
+};
+
 
 // Rota de health check
 app.get('/health', (req, res) => {
@@ -41,20 +118,28 @@ app.post('/webhook', async (req, res) => {
             return;
         }
 
-        // Processa apenas mensagens recebidas
-        if (event !== 'messages.upsert') return;
+        // Processa mensagens recebidas (suporta variações de evento/payload)
+        const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
+        if (!message) {
+            console.log('ℹ️ Evento sem payload de mensagem compatível. Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}));
+            return;
+        }
 
-        const message = data;
+        if (event !== 'messages.upsert' && event !== 'send.message') {
+            console.log(`ℹ️ Evento ${event} continha mensagem e será processado.`);
+        }
 
         // Check if it's a reaction
-        if (message.messageType === 'reactionMessage') {
+        const unwrappedMessage = unwrapMessageContent(message.message);
+        const reactionMessage = unwrappedMessage?.reactionMessage;
+        if (message.messageType === 'reactionMessage' || reactionMessage) {
             console.log('🎯 REAÇÃO DETECTADA!');
             const reactionData = {
                 key: message.key,
                 message: {
                     reaction: {
-                        key: message.message.reactionMessage.key,
-                        text: message.message.reactionMessage.text
+                        key: reactionMessage?.key,
+                        text: reactionMessage?.text
                     }
                 }
             };
@@ -66,10 +151,16 @@ app.post('/webhook', async (req, res) => {
         // if (message.key.fromMe) return;
 
         // Ignora mensagens de status
-        if (message.key.remoteJid === 'status@broadcast') return;
+        const remoteJid = message?.key?.remoteJid;
+        if (!remoteJid) {
+            console.log('ℹ️ Mensagem sem remoteJid, ignorando.');
+            return;
+        }
+
+        if (remoteJid === 'status@broadcast') return;
 
         // Verifica se é um grupo (remoteJid termina com @g.us)
-        const isGroup = message.key.remoteJid.endsWith('@g.us');
+        const isGroup = remoteJid.endsWith('@g.us');
 
         if (!isGroup) {
             console.log('Mensagem ignorada: não é de um grupo');
@@ -77,18 +168,15 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Pega o conteúdo da mensagem
-        const messageContent = message.message?.conversation || 
-                              message.message?.extendedTextMessage?.text || 
-                              message.message?.imageMessage?.caption || 
-                              message.message?.videoMessage?.caption || '';
+        const messageContent = getMessageText(message.message).trim();
 
         console.log('Mensagem recebida:', messageContent);
-        console.log('De:', message.key.remoteJid);
+        console.log('De:', remoteJid);
 
         // Verifica se o usuário está criando um comando personalizado
         const isCreating = await handleCreationStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
@@ -98,7 +186,7 @@ app.post('/webhook', async (req, res) => {
         // Verifica se o usuário está configurando um cron
         const isCronSetup = await handleCronStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
@@ -108,7 +196,7 @@ app.post('/webhook', async (req, res) => {
         // Verifica se o usuário está registrando imagem
         const isRegistering = await handleImageRegistrationStep(
             instance,
-            message.key.remoteJid,
+            remoteJid,
             message,
             message.key.id
         );
@@ -139,6 +227,19 @@ app.post('/webhook', async (req, res) => {
     } catch (error) {
         console.error('Erro ao processar webhook:', error);
     }
+});
+
+app.use((error, req, res, next) => {
+    if (error?.type === 'entity.too.large' || error?.status === 413) {
+        console.error('❌ Payload maior que o limite permitido:', error.message);
+        return res.status(413).json({
+            received: false,
+            error: 'payload_too_large',
+            message: `Payload excede o limite configurado (${webhookPayloadLimit}).`
+        });
+    }
+
+    return next(error);
 });
 
 // Inicia o servidor
