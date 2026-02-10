@@ -55,8 +55,21 @@ const normalizeIncomingMessage = (data) => {
 
     while (queue.length > 0) {
         const candidate = queue.shift();
-        if (!candidate || typeof candidate !== 'object') continue;
+        if (!candidate) continue;
 
+        if (typeof candidate === 'string') {
+            const trimmed = candidate.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try {
+                    queue.push(JSON.parse(trimmed));
+                } catch (_) {
+                    // ignore invalid JSON strings
+                }
+            }
+            continue;
+        }
+
+        if (typeof candidate !== 'object') continue;
         if (visited.has(candidate)) continue;
         visited.add(candidate);
 
@@ -68,22 +81,29 @@ const normalizeIncomingMessage = (data) => {
             return candidate.message;
         }
 
+        // fallback comum para chats.upsert/chats.update com lastMessage
+        if (candidate?.lastMessage?.message) {
+            return {
+                key: candidate.lastMessage.key || { remoteJid: candidate.id },
+                message: candidate.lastMessage.message,
+                messageType: candidate.lastMessage.messageType
+            };
+        }
+
         if (Array.isArray(candidate)) {
             queue.push(...candidate);
             continue;
         }
 
-        // varre campos comuns primeiro
-        const nestedKeys = ['data', 'payload', 'message', 'messages'];
+        const nestedKeys = ['data', 'payload', 'message', 'messages', 'lastMessage'];
         for (const key of nestedKeys) {
             if (candidate[key]) {
                 queue.push(candidate[key]);
             }
         }
 
-        // fallback: percorre todas as chaves do objeto (incluindo "0", "1", lastMessage etc.)
         for (const value of Object.values(candidate)) {
-            if (value && typeof value === 'object') {
+            if (value && (typeof value === 'object' || typeof value === 'string')) {
                 queue.push(value);
             }
         }
@@ -93,10 +113,12 @@ const normalizeIncomingMessage = (data) => {
 };
 
 
+
 const nonMessageEvents = new Set([
     'presence.update',
     'contacts.update',
     'chats.update',
+    'chats.upsert',
     'labels.edit',
     'labels.association',
     'groups.upsert',
@@ -137,7 +159,7 @@ app.post('/webhook', async (req, res) => {
         const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
         if (!message) {
             if (!nonMessageEvents.has(event)) {
-                console.log('ℹ️ Evento sem payload de mensagem compatível. Event:', event, 'Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}));
+                console.log('ℹ️ Evento sem payload de mensagem compatível. Event:', event, 'Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}), 'Tipo data[0]:', typeof data?.[0]);
             }
             return;
         }
