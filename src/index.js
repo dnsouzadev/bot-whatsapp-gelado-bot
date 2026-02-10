@@ -9,7 +9,9 @@ import { handleImageRegistrationStep, handleReaction } from './services/imageRan
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+const webhookPayloadLimit = process.env.WEBHOOK_PAYLOAD_LIMIT || '200mb';
+app.use(express.json({ limit: webhookPayloadLimit }));
+app.use(express.urlencoded({ limit: webhookPayloadLimit, extended: true }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -139,6 +141,19 @@ app.post('/webhook', async (req, res) => {
     } catch (error) {
         console.error('Erro ao processar webhook:', error);
     }
+});
+
+app.use((error, req, res, next) => {
+    if (error?.type === 'entity.too.large' || error?.status === 413) {
+        console.error('❌ Payload maior que o limite permitido:', error.message);
+        return res.status(413).json({
+            received: false,
+            error: 'payload_too_large',
+            message: `Payload excede o limite configurado (${webhookPayloadLimit}).`
+        });
+    }
+
+    return next(error);
 });
 
 // Inicia o servidor

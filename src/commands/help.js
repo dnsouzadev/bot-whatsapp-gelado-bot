@@ -25,11 +25,25 @@ const helpCommand = async (message, instance) => {
 📷 *Ranking de Imagens*
 • !register - Registra uma foto no ranking (use legenda para dar nome)
 • !random - Mostra uma foto aleatória para votar
+• !carta [posição] - Mostra a carta da imagem (visualização sem votos)
 • !imgrank - Mostra o top 10 das fotos
+
+🎁 *Giveaways*
+• !dice - Jogo do dado com reset de limites
+• !roleta - Roleta da sorte por período
+• !caixa - Caixa misteriosa diária
+• !raspadinha - Raspadinha diária
+• !tesouro - Baú do tesouro diário
+• !slot - Slot da sorte diário
+• !meteoro - Chuva de meteoros diária
 
 🎲 *Jogos*
 • !dado - Rola um dado (1-6)
 • !caraoucoroa - Cara ou coroa
+• !duel - Duelo cara ou coroa com aposta
+• !parimpar - Duelo par ou ímpar com aposta
+• !dueldado - Duelo do dado com aposta
+• !jokenpo - Duelo jokenpô com aposta
 • !ppt [pedra/papel/tesoura] - Pedra, papel ou tesoura
 
 😄 *Diversão*
@@ -43,6 +57,7 @@ const helpCommand = async (message, instance) => {
 📱 *Outros*
 • !sticker - Converte imagem em sticker
 • !make [nome] - Cria comando personalizado
+• !adm [1-100] - Desafio para virar admin por 24h (1 tentativa por período)
 • !everyone - Marca todos do grupo
 • !ping - Verifica se o bot está online
 • !ajuda - Mostra esta mensagem
