@@ -1,5 +1,19 @@
 {
   "images": [],
   "messageMap": {},
-  "usage": {}
+  "messageReactions": {},
+  "adminUsage": {},
+  "adminUsers": {},
+  "randomUsage": {},
+  "reactionUsage": {},
+  "diceUsage": {},
+  "rouletteUsage": {},
+  "giftUsage": {},
+  "luckyBoxUsage": {},
+  "scratchUsage": {},
+  "treasureUsage": {},
+  "slotUsage": {},
+  "meteorUsage": {},
+  "bannedUsers": {},
+  "activeDuels": {}
 }
