@@ -9,9 +9,62 @@ import { handleImageRegistrationStep, handleReaction } from './services/imageRan
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+const webhookPayloadLimit = process.env.WEBHOOK_PAYLOAD_LIMIT || '200mb';
+app.use(express.json({ limit: webhookPayloadLimit }));
+app.use(express.urlencoded({ limit: webhookPayloadLimit, extended: true }));
 
 const PORT = process.env.PORT || 3000;
+
+
+const unwrapMessageContent = (messageNode) => {
+    if (!messageNode) return {};
+
+    if (messageNode.ephemeralMessage?.message) {
+        return unwrapMessageContent(messageNode.ephemeralMessage.message);
+    }
+
+    if (messageNode.viewOnceMessage?.message) {
+        return unwrapMessageContent(messageNode.viewOnceMessage.message);
+    }
+
+    if (messageNode.viewOnceMessageV2?.message) {
+        return unwrapMessageContent(messageNode.viewOnceMessageV2.message);
+    }
+
+    return messageNode;
+};
+
+const getMessageText = (messageNode) => {
+    const content = unwrapMessageContent(messageNode);
+
+    return content?.conversation ||
+        content?.extendedTextMessage?.text ||
+        content?.imageMessage?.caption ||
+        content?.videoMessage?.caption ||
+        content?.documentMessage?.caption ||
+        content?.buttonsResponseMessage?.selectedDisplayText ||
+        content?.listResponseMessage?.title ||
+        '';
+};
+
+const normalizeIncomingMessage = (data) => {
+    if (!data) return null;
+
+    if (Array.isArray(data.messages) && data.messages.length > 0) {
+        return data.messages[0];
+    }
+
+    if (data.message?.key && data.message?.message) {
+        return data.message;
+    }
+
+    if (data.key && data.message) {
+        return data;
+    }
+
+    return null;
+};
+
 
 // Rota de health check
 app.get('/health', (req, res) => {
@@ -41,20 +94,26 @@ app.post('/webhook', async (req, res) => {
             return;
         }
 
-        // Processa apenas mensagens recebidas
-        if (event !== 'messages.upsert') return;
+        // Processa apenas mensagens recebidas (suporta variações de payload)
+        if (event !== 'messages.upsert' && event !== 'send.message') return;
 
-        const message = data;
+        const message = normalizeIncomingMessage(data);
+        if (!message) {
+            console.log('ℹ️ Evento de mensagem sem payload compatível. Chaves data:', Object.keys(data || {}));
+            return;
+        }
 
         // Check if it's a reaction
-        if (message.messageType === 'reactionMessage') {
+        const unwrappedMessage = unwrapMessageContent(message.message);
+        const reactionMessage = unwrappedMessage?.reactionMessage;
+        if (message.messageType === 'reactionMessage' || reactionMessage) {
             console.log('🎯 REAÇÃO DETECTADA!');
             const reactionData = {
                 key: message.key,
                 message: {
                     reaction: {
-                        key: message.message.reactionMessage.key,
-                        text: message.message.reactionMessage.text
+                        key: reactionMessage?.key,
+                        text: reactionMessage?.text
                     }
                 }
             };
@@ -77,10 +136,7 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Pega o conteúdo da mensagem
-        const messageContent = message.message?.conversation || 
-                              message.message?.extendedTextMessage?.text || 
-                              message.message?.imageMessage?.caption || 
-                              message.message?.videoMessage?.caption || '';
+        const messageContent = getMessageText(message.message).trim();
 
         console.log('Mensagem recebida:', messageContent);
         console.log('De:', message.key.remoteJid);
@@ -139,6 +195,19 @@ app.post('/webhook', async (req, res) => {
     } catch (error) {
         console.error('Erro ao processar webhook:', error);
     }
+});
+
+app.use((error, req, res, next) => {
+    if (error?.type === 'entity.too.large' || error?.status === 413) {
+        console.error('❌ Payload maior que o limite permitido:', error.message);
+        return res.status(413).json({
+            received: false,
+            error: 'payload_too_large',
+            message: `Payload excede o limite configurado (${webhookPayloadLimit}).`
+        });
+    }
+
+    return next(error);
 });
 
 // Inicia o servidor
