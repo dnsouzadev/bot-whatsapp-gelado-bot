@@ -38,6 +38,14 @@ const loadDb = async () => {
             imageDb.messageReactions = {};
             needsSave = true;
         }
+        if (!imageDb.adminUsage) {
+            imageDb.adminUsage = {};
+            needsSave = true;
+        }
+        if (!imageDb.adminUsers) {
+            imageDb.adminUsers = {};
+            needsSave = true;
+        }
         if (!imageDb.randomUsage) {
             imageDb.randomUsage = {};
             needsSave = true;
@@ -121,6 +129,8 @@ const loadDb = async () => {
             images: [],
             messageMap: {},
             messageReactions: {},
+            adminUsage: {},
+            adminUsers: {},
             randomUsage: {},
             reactionUsage: {},
             diceUsage: {},
@@ -279,6 +289,46 @@ const pickWeightedPrize = (prizes) => {
         }
     }
     return prizes[prizes.length - 1];
+};
+
+const getPeriodInfo = () => {
+    const now = getNowInTimezone();
+    const currentHour = now.getUTCHours();
+    let period = 'night';
+    let periodName = 'Noite';
+    let periodEmoji = '🌙';
+    let nextPeriodStart = new Date(now);
+    let nextPeriodName = '🌅 Manhã (00:00)';
+
+    if (currentHour < 12) {
+        period = 'morning';
+        periodName = 'Manhã';
+        periodEmoji = '🌅';
+        nextPeriodStart.setUTCHours(12, 0, 0, 0);
+        nextPeriodName = '☀️ Tarde (12:00)';
+    } else if (currentHour < 18) {
+        period = 'afternoon';
+        periodName = 'Tarde';
+        periodEmoji = '☀️';
+        nextPeriodStart.setUTCHours(18, 0, 0, 0);
+        nextPeriodName = '🌙 Noite (18:00)';
+    } else {
+        nextPeriodStart.setUTCDate(nextPeriodStart.getUTCDate() + 1);
+        nextPeriodStart.setUTCHours(0, 0, 0, 0);
+    }
+
+    const hoursUntil = Math.floor((nextPeriodStart - now) / (1000 * 60 * 60));
+    const minutesUntil = Math.floor(((nextPeriodStart - now) % (1000 * 60 * 60)) / (1000 * 60));
+
+    return {
+        now,
+        period,
+        periodName,
+        periodEmoji,
+        nextPeriodName,
+        hoursUntil,
+        minutesUntil
+    };
 };
 
 // --- Registration Logic ---
@@ -533,6 +583,69 @@ export const handleReaction = async (reactionEvent, instance) => {
     }
     
     await saveDb();
+};
+
+// --- Admin Challenge Logic ---
+
+export const checkAdmin = async (userNumber) => {
+    await loadDb();
+    const admin = imageDb.adminUsers[userNumber];
+    if (!admin) return false;
+    if (admin.until && admin.until < Date.now()) {
+        delete imageDb.adminUsers[userNumber];
+        await saveDb();
+        return false;
+    }
+    return true;
+};
+
+const grantAdminForDay = (userNumber) => {
+    imageDb.adminUsers[userNumber] = {
+        until: Date.now() + 24 * 60 * 60 * 1000
+    };
+};
+
+export const playAdminChallenge = async (userNumber, chosenNumber) => {
+    await loadDb();
+
+    const today = getToday();
+    const { period, periodName, periodEmoji, nextPeriodName, hoursUntil, minutesUntil } = getPeriodInfo();
+
+    const usage = imageDb.adminUsage[userNumber] || {
+        date: today,
+        morning: false,
+        afternoon: false,
+        night: false
+    };
+
+    if (usage.date !== today) {
+        usage.date = today;
+        usage.morning = false;
+        usage.afternoon = false;
+        usage.night = false;
+    }
+
+    if (usage[period]) {
+        return `👑 Você já tentou virar admin na ${periodName} ${periodEmoji}\n\n⏰ Próximo período: ${nextPeriodName}\n🕐 Disponível em: ${hoursUntil}h ${minutesUntil}min`;
+    }
+
+    const guess = parseInt(chosenNumber, 10);
+    if (Number.isNaN(guess) || guess < 1 || guess > 100) {
+        return `❌ Escolha um número entre 1 e 100.\nExemplo: !adm 42\n\n${periodEmoji} Período atual: ${periodName}`;
+    }
+
+    usage[period] = true;
+    imageDb.adminUsage[userNumber] = usage;
+
+    const roll = Math.floor(Math.random() * 100) + 1;
+    if (roll === guess) {
+        grantAdminForDay(userNumber);
+        await saveDb();
+        return `👑 *PARABÉNS!* Você acertou!\n🎯 Número: ${roll}\n\n✅ Você virou administradora do bot por 24h!`;
+    }
+
+    await saveDb();
+    return `${periodEmoji} Você escolheu: ${guess}\n🎯 Número sorteado: ${roll}\n\n😢 Não foi dessa vez! Tente no próximo período.`;
 };
 
 // --- Rank Logic ---
@@ -1397,7 +1510,8 @@ export const clearAllUsage = async () => {
         ...Object.keys(imageDb.scratchUsage),
         ...Object.keys(imageDb.treasureUsage),
         ...Object.keys(imageDb.slotUsage),
-        ...Object.keys(imageDb.meteorUsage)
+        ...Object.keys(imageDb.meteorUsage),
+        ...Object.keys(imageDb.adminUsage)
     ]).size;
     
     imageDb.randomUsage = {};
@@ -1410,6 +1524,7 @@ export const clearAllUsage = async () => {
     imageDb.treasureUsage = {};
     imageDb.slotUsage = {};
     imageDb.meteorUsage = {};
+    imageDb.adminUsage = {};
     imageDb.activeDuels = {};
     
     await saveDb();

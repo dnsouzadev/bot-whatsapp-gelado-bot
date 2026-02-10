@@ -57,6 +57,7 @@ const helpCommand = async (message, instance) => {
 📱 *Outros*
 • !sticker - Converte imagem em sticker
 • !make [nome] - Cria comando personalizado
+• !adm [1-100] - Desafio para virar admin por 24h (1 tentativa por período)
 • !everyone - Marca todos do grupo
 • !ping - Verifica se o bot está online
 • !ajuda - Mostra esta mensagem

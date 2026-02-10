@@ -37,6 +37,7 @@ import cartaCommand from './carta.js';
 import parimparCommand from './parimpar.js';
 import dueldadoCommand from './dueldado.js';
 import jokenpoCommand from './jokenpo.js';
+import admCommand from './adm.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 import { checkBan } from '../services/imageRankService.js';
 
@@ -65,6 +66,7 @@ const commands = {
     'register': registerImageCommand,
     'random': randomImageCommand,
     'carta': cartaCommand,
+    'adm': admCommand,
     'imgrank': imageRankCommand,
     'dice': diceResetCommand,
     'profile': profileCommand,
