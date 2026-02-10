@@ -50,25 +50,39 @@ const getMessageText = (messageNode) => {
 const normalizeIncomingMessage = (data) => {
     if (!data) return null;
 
-    const candidates = [
-        data,
-        data.data,
-        data.payload,
-        data.message,
-        data.messages?.[0],
-        data.data?.message,
-        data.data?.messages?.[0],
-        data.payload?.message,
-        data.payload?.messages?.[0]
-    ].filter(Boolean);
+    const queue = [data];
+    const visited = new Set();
 
-    for (const candidate of candidates) {
+    while (queue.length > 0) {
+        const candidate = queue.shift();
+        if (!candidate || typeof candidate !== 'object') continue;
+
+        if (visited.has(candidate)) continue;
+        visited.add(candidate);
+
         if (candidate?.key && candidate?.message) {
             return candidate;
         }
 
         if (candidate?.message?.key && candidate?.message?.message) {
             return candidate.message;
+        }
+
+        if (Array.isArray(candidate)) {
+            queue.push(...candidate);
+            continue;
+        }
+
+        const nestedKeys = ['data', 'payload', 'message', 'messages'];
+        for (const key of nestedKeys) {
+            if (candidate[key]) {
+                queue.push(candidate[key]);
+            }
+        }
+
+        const numericLikeKeys = Object.keys(candidate).filter((k) => /^\d+$/.test(k));
+        for (const key of numericLikeKeys) {
+            queue.push(candidate[key]);
         }
     }
 
@@ -107,7 +121,7 @@ app.post('/webhook', async (req, res) => {
         // Processa mensagens recebidas (suporta variações de evento/payload)
         const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
         if (!message) {
-            console.log('ℹ️ Evento sem payload de mensagem compatível. Chaves data:', Object.keys(data || {}));
+            console.log('ℹ️ Evento sem payload de mensagem compatível. Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}));
             return;
         }
 
