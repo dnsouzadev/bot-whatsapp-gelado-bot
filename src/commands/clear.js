@@ -1,15 +1,18 @@
 import { sendReply } from '../services/evolutionApi.js';
-import { clearAllUsage } from '../services/imageRankService.js';
+import { clearAllUsage, checkAdmin } from '../services/imageRankService.js';
 
 const clearCommand = async (message, instance) => {
     try {
         // Check if message is from bot itself (fromMe: true)
         const isFromBot = message.key.fromMe === true;
+        const requesterNumber = message.key.participant?.replace('@lid', '').replace('@s.whatsapp.net', '') || 
+            message.key.remoteJid?.replace('@s.whatsapp.net', '');
+        const isAdmin = isFromBot || await checkAdmin(requesterNumber);
         
         console.log('🔍 CLEAR - message.key:', JSON.stringify(message.key));
         console.log('🔍 CLEAR - isFromBot:', isFromBot);
         
-        if (!isFromBot) {
+        if (!isAdmin) {
             await sendReply(
                 instance, 
                 message.key.remoteJid, 
