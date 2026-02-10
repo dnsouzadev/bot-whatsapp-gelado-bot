@@ -73,6 +73,7 @@ const normalizeIncomingMessage = (data) => {
             continue;
         }
 
+        // varre campos comuns primeiro
         const nestedKeys = ['data', 'payload', 'message', 'messages'];
         for (const key of nestedKeys) {
             if (candidate[key]) {
@@ -80,14 +81,28 @@ const normalizeIncomingMessage = (data) => {
             }
         }
 
-        const numericLikeKeys = Object.keys(candidate).filter((k) => /^\d+$/.test(k));
-        for (const key of numericLikeKeys) {
-            queue.push(candidate[key]);
+        // fallback: percorre todas as chaves do objeto (incluindo "0", "1", lastMessage etc.)
+        for (const value of Object.values(candidate)) {
+            if (value && typeof value === 'object') {
+                queue.push(value);
+            }
         }
     }
 
     return null;
 };
+
+
+const nonMessageEvents = new Set([
+    'presence.update',
+    'contacts.update',
+    'chats.update',
+    'labels.edit',
+    'labels.association',
+    'groups.upsert',
+    'groups.update',
+    'connection.update'
+]);
 
 
 // Rota de health check
@@ -121,7 +136,9 @@ app.post('/webhook', async (req, res) => {
         // Processa mensagens recebidas (suporta variações de evento/payload)
         const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
         if (!message) {
-            console.log('ℹ️ Evento sem payload de mensagem compatível. Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}));
+            if (!nonMessageEvents.has(event)) {
+                console.log('ℹ️ Evento sem payload de mensagem compatível. Event:', event, 'Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}));
+            }
             return;
         }
 
