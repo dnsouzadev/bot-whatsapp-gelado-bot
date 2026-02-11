@@ -9,9 +9,21 @@ import { handleImageRegistrationStep, handleReaction } from './services/imageRan
 dotenv.config();
 
 const app = express();
-const webhookPayloadLimit = process.env.WEBHOOK_PAYLOAD_LIMIT || '200mb';
-app.use(express.json({ limit: webhookPayloadLimit }));
-app.use(express.urlencoded({ limit: webhookPayloadLimit, extended: true }));
+const webhookPayloadLimit = process.env.WEBHOOK_PAYLOAD_LIMIT || '1gb';
+// Mantemos parser global bem pequeno para rotas comuns,
+// mas pulamos no /webhook para evitar PayloadTooLarge antes do parser dedicado.
+const defaultJsonParser = express.json({ limit: '1mb' });
+const defaultUrlEncodedParser = express.urlencoded({ limit: '1mb', extended: true });
+
+app.use((req, res, next) => {
+    if (req.path === '/webhook') return next();
+    return defaultJsonParser(req, res, next);
+});
+
+app.use((req, res, next) => {
+    if (req.path === '/webhook') return next();
+    return defaultUrlEncodedParser(req, res, next);
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -114,6 +126,39 @@ const normalizeIncomingMessage = (data) => {
 
 
 
+
+const extractCommandFromChatUpdates = (data) => {
+    if (!data || typeof data !== 'object') return null;
+
+    const entries = Array.isArray(data)
+        ? data
+        : Object.values(data).filter((value) => value && typeof value === 'object');
+
+    for (const entry of entries) {
+        const remoteJid = entry?.id || entry?.remoteJid || entry?.lastMessage?.key?.remoteJid;
+        if (!remoteJid || !remoteJid.endsWith('@g.us')) continue;
+
+        const messageNode = entry?.lastMessage?.message || entry?.message;
+        if (!messageNode) continue;
+
+        const text = getMessageText(messageNode).trim();
+        if (!text.startsWith('!')) continue;
+
+        return {
+            key: {
+                remoteJid,
+                id: entry?.lastMessage?.key?.id || `chat-${Date.now()}`,
+                participant: entry?.lastMessage?.key?.participant,
+                fromMe: entry?.lastMessage?.key?.fromMe || false
+            },
+            message: messageNode,
+            messageType: entry?.lastMessage?.messageType
+        };
+    }
+
+    return null;
+};
+
 const nonMessageEvents = new Set([
     'presence.update',
     'contacts.update',
@@ -123,7 +168,8 @@ const nonMessageEvents = new Set([
     'labels.association',
     'groups.upsert',
     'groups.update',
-    'connection.update'
+    'connection.update',
+    'messages.update'
 ]);
 
 
@@ -132,8 +178,13 @@ app.get('/health', (req, res) => {
     res.json({ status: 'online', message: 'Bot WhatsApp está rodando!' });
 });
 
+const webhookParsers = [
+    express.json({ limit: webhookPayloadLimit }),
+    express.urlencoded({ limit: webhookPayloadLimit, extended: true })
+];
+
 // Webhook para receber mensagens do Evolution API
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', webhookParsers, async (req, res) => {
     try {
         const { event, instance, data } = req.body;
 
@@ -156,7 +207,7 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Processa mensagens recebidas (suporta variações de evento/payload)
-        const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body);
+        const message = normalizeIncomingMessage(data) || normalizeIncomingMessage(req.body) || extractCommandFromChatUpdates(data);
         if (!message) {
             if (!nonMessageEvents.has(event)) {
                 console.log('ℹ️ Evento sem payload de mensagem compatível. Event:', event, 'Chaves data:', Object.keys(data || {}), 'Chaves body:', Object.keys(req.body || {}), 'Tipo data[0]:', typeof data?.[0]);
