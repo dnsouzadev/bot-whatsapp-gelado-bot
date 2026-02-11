@@ -28,6 +28,16 @@ import rouletteCommand from './roulette.js';
 import duelCommand from './duel.js';
 import giftCommand from './gift.js';
 import banCommand from './ban.js';
+import caixaCommand from './caixa.js';
+import raspadinhaCommand from './raspadinha.js';
+import tesouroCommand from './tesouro.js';
+import slotCommand from './slot.js';
+import meteoroCommand from './meteoro.js';
+import cartaCommand from './carta.js';
+import parimparCommand from './parimpar.js';
+import dueldadoCommand from './dueldado.js';
+import jokenpoCommand from './jokenpo.js';
+import admCommand from './adm.js';
 import { getCustomCommand } from '../services/customCommandService.js';
 import { checkBan } from '../services/imageRankService.js';
 
@@ -55,6 +65,8 @@ const commands = {
     'cron': cronCommand,
     'register': registerImageCommand,
     'random': randomImageCommand,
+    'carta': cartaCommand,
+    'adm': admCommand,
     'imgrank': imageRankCommand,
     'dice': diceResetCommand,
     'profile': profileCommand,
@@ -64,9 +76,17 @@ const commands = {
     'roleta': rouletteCommand,
     'duel': duelCommand,
     'duelo': duelCommand,
+    'parimpar': parimparCommand,
+    'dueldado': dueldadoCommand,
+    'jokenpo': jokenpoCommand,
     'gift': giftCommand,
     'presente': giftCommand,
-    'ban': banCommand
+    'ban': banCommand,
+    'caixa': caixaCommand,
+    'raspadinha': raspadinhaCommand,
+    'tesouro': tesouroCommand,
+    'slot': slotCommand,
+    'meteoro': meteoroCommand
 };
 
 const handleCommand = async (message, command, instance) => {
