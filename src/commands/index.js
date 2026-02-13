@@ -90,10 +90,15 @@ const commands = {
 };
 
 const handleCommand = async (message, command, instance) => {
-    const parts = command.split(' ');
+    const normalizedCommand = (command || '').trim();
+    const parts = normalizedCommand ? normalizedCommand.split(/\s+/) : [];
     const commandName = parts[0];
     const args = parts.slice(1);
     const commandHandler = commands[commandName];
+
+    if (!commandName) {
+        return;
+    }
 
     // Check if user is banned (except for ban command itself)
     if (commandName !== 'ban') {

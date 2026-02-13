@@ -295,7 +295,16 @@ app.post('/webhook', webhookParsers, async (req, res) => {
 
         // Verifica se é um comando (começa com !)
         if (messageContent.startsWith('!')) {
-            const comando = messageContent.slice(1).toLowerCase();
+            const comando = messageContent
+                .slice(1)
+                .trim()
+                .toLowerCase();
+
+            if (!comando) {
+                console.log('Comando vazio recebido após o prefixo "!", ignorando.');
+                return;
+            }
+
             console.log('Comando detectado:', comando);
 
             await handleCommand(message, comando, instance);
